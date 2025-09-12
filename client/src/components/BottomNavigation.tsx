@@ -1,8 +1,8 @@
-import { PlusCircle, Sparkles, Folder, User } from "lucide-react";
+import { PlusCircle, Sparkles, Folder, User, FileDown } from "lucide-react";
 
 interface BottomNavigationProps {
   activeScreen: string;
-  onScreenChange: (screen: 'wins' | 'statements' | 'library' | 'account') => void;
+  onScreenChange: (screen: 'wins' | 'statements' | 'library' | 'export' | 'account') => void;
 }
 
 export default function BottomNavigation({ activeScreen, onScreenChange }: BottomNavigationProps) {
@@ -10,6 +10,7 @@ export default function BottomNavigation({ activeScreen, onScreenChange }: Botto
     { id: 'wins', icon: PlusCircle, label: 'Wins' },
     { id: 'statements', icon: Sparkles, label: 'Statements' },
     { id: 'library', icon: Folder, label: 'Library' },
+    { id: 'export', icon: FileDown, label: 'Export' },
     { id: 'account', icon: User, label: 'Account' },
   ];
 

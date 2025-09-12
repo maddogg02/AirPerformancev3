@@ -6,11 +6,12 @@ import BottomNavigation from "../components/BottomNavigation";
 import WinsScreen from "../components/WinsScreen";
 import StatementsScreen from "../components/StatementsScreen";
 import LibraryScreen from "../components/LibraryScreen";
+import ExportScreen from "../components/ExportScreen";
 import AccountScreen from "../components/AccountScreen";
 import RefinementScreen from "../components/RefinementScreen";
 import { Shield } from "lucide-react";
 
-type Screen = 'wins' | 'statements' | 'library' | 'account' | 'refinement';
+type Screen = 'wins' | 'statements' | 'library' | 'export' | 'account' | 'refinement';
 
 export default function Home() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -22,7 +23,7 @@ export default function Home() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
-      if (['wins', 'statements', 'library', 'account'].includes(hash)) {
+      if (['wins', 'statements', 'library', 'export', 'account'].includes(hash)) {
         setActiveScreen(hash as Screen);
       }
     };
@@ -79,6 +80,8 @@ export default function Home() {
         return <StatementsScreen onStartRefinement={handleStartRefinement} />;
       case 'library':
         return <LibraryScreen onNavigateToStatements={() => setActiveScreen('statements')} />;
+      case 'export':
+        return <ExportScreen />;
       case 'account':
         return <AccountScreen />;
       case 'refinement':

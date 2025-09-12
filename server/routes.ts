@@ -276,7 +276,189 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Export route
+  // Helper functions for export generation
+  function generateFullReport(wins: any[], statements: any[]) {
+    let content = `AIR FORCE PERFORMANCE TRACKER - FULL REPORT\n\n`;
+    content += `Generated: ${new Date().toLocaleDateString()}\n\n`;
+    
+    content += `PERFORMANCE ENTRIES (${wins.length}):\n`;
+    content += `${'='.repeat(50)}\n\n`;
+    
+    wins.forEach((win, index) => {
+      content += `${index + 1}. ${win.category}\n`;
+      content += `Action: ${win.action}\n`;
+      content += `Impact: ${win.impact}\n`;
+      content += `Result: ${win.result}\n`;
+      content += `Date: ${new Date(win.createdAt).toLocaleDateString()}\n\n`;
+    });
+    
+    content += `\nREFINED STATEMENTS (${statements.length}):\n`;
+    content += `${'='.repeat(50)}\n\n`;
+    
+    statements.forEach((statement, index) => {
+      content += `${index + 1}. ${statement.category}\n`;
+      content += `${statement.content}\n`;
+      content += `Status: ${statement.isCompleted ? 'Completed' : 'Draft'}\n`;
+      content += `Date: ${new Date(statement.createdAt).toLocaleDateString()}\n\n`;
+    });
+    
+    return content;
+  }
+
+  function generateCategoryReport(wins: any[], statements: any[]) {
+    let content = `AIR FORCE PERFORMANCE TRACKER - CATEGORY SUMMARY\n\n`;
+    content += `Generated: ${new Date().toLocaleDateString()}\n\n`;
+    
+    const categories = Array.from(new Set([...wins.map(w => w.category), ...statements.map(s => s.category)]));
+    
+    categories.forEach(category => {
+      content += `${category.toUpperCase()}\n`;
+      content += `${'='.repeat(category.length)}\n\n`;
+      
+      const categoryWins = wins.filter(w => w.category === category);
+      const categoryStatements = statements.filter(s => s.category === category);
+      
+      content += `Entries: ${categoryWins.length}\n`;
+      content += `Statements: ${categoryStatements.length}\n\n`;
+      
+      categoryStatements.forEach(statement => {
+        content += `• ${statement.content}\n`;
+      });
+      
+      content += `\n`;
+    });
+    
+    return content;
+  }
+
+  function generateTimelineReport(wins: any[], statements: any[]) {
+    let content = `AIR FORCE PERFORMANCE TRACKER - TIMELINE VIEW\n\n`;
+    content += `Generated: ${new Date().toLocaleDateString()}\n\n`;
+    
+    const allItems = [
+      ...wins.map(w => ({ ...w, type: 'entry', date: new Date(w.createdAt) })),
+      ...statements.map(s => ({ ...s, type: 'statement', date: new Date(s.createdAt) }))
+    ].sort((a, b) => b.date.getTime() - a.date.getTime());
+    
+    let currentMonth = '';
+    
+    allItems.forEach(item => {
+      const monthYear = item.date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      
+      if (monthYear !== currentMonth) {
+        currentMonth = monthYear;
+        content += `\n${monthYear}\n`;
+        content += `${'-'.repeat(monthYear.length)}\n\n`;
+      }
+      
+      if (item.type === 'entry') {
+        content += `${item.date.toLocaleDateString()} - ENTRY: ${item.category}\n`;
+        content += `  ${item.action} - ${item.impact} - ${item.result}\n\n`;
+      } else {
+        content += `${item.date.toLocaleDateString()} - STATEMENT: ${item.category}\n`;
+        content += `  ${item.content}\n\n`;
+      }
+    });
+    
+    return content;
+  }
+
+  function generateStatementsReport(statements: any[]) {
+    let content = `AIR FORCE PERFORMANCE TRACKER - STATEMENTS ONLY\n\n`;
+    content += `Generated: ${new Date().toLocaleDateString()}\n\n`;
+    
+    statements.forEach((statement, index) => {
+      content += `${index + 1}. [${statement.category}] ${statement.content}\n\n`;
+    });
+    
+    return content;
+  }
+
+  function generateCSVContent(wins: any[], statements: any[]) {
+    let csv = 'Type,Category,Content,Date,Status\n';
+    
+    wins.forEach(win => {
+      const content = `"${win.action} - ${win.impact} - ${win.result}"`;
+      csv += `Entry,"${win.category}",${content},"${new Date(win.createdAt).toLocaleDateString()}","Active"\n`;
+    });
+    
+    statements.forEach(statement => {
+      const content = `"${statement.content}"`;
+      const status = statement.isCompleted ? 'Completed' : 'Draft';
+      csv += `Statement,"${statement.category}",${content},"${new Date(statement.createdAt).toLocaleDateString()}","${status}"\n`;
+    });
+    
+    return csv;
+  }
+
+  // Export routes
+  app.post('/api/export', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { format, view, categories, dateRange } = req.body;
+
+      // Fetch user data based on filters
+      let wins = await storage.getWinsByUserId(userId);
+      let statements = await storage.getStatementsByUserId(userId);
+
+      // Apply category filter
+      if (categories && categories.length > 0) {
+        wins = wins.filter((win: any) => categories.includes(win.category));
+        statements = statements.filter((statement: any) => categories.includes(statement.category));
+      }
+
+      // Apply date filter
+      if (dateRange) {
+        const { start, end } = dateRange;
+        if (start) {
+          const startDate = new Date(start);
+          wins = wins.filter((win: any) => new Date(win.createdAt) >= startDate);
+          statements = statements.filter((statement: any) => new Date(statement.createdAt) >= startDate);
+        }
+        if (end) {
+          const endDate = new Date(end);
+          wins = wins.filter((win: any) => new Date(win.createdAt) <= endDate);
+          statements = statements.filter((statement: any) => new Date(statement.createdAt) <= endDate);
+        }
+      }
+
+      // Generate content based on view
+      let exportContent = '';
+      if (view === 'Full Report') {
+        exportContent = generateFullReport(wins, statements);
+      } else if (view === 'Category-only') {
+        exportContent = generateCategoryReport(wins, statements);
+      } else if (view === 'Timeline') {
+        exportContent = generateTimelineReport(wins, statements);
+      } else if (view === 'Statements Only') {
+        exportContent = generateStatementsReport(statements);
+      }
+
+      // Set headers based on format
+      if (format === 'PDF') {
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'attachment; filename="af-performance.pdf"');
+        // For now, send as text (in real app, would generate actual PDF)
+        res.send(`PDF Export:\n\n${exportContent}`);
+      } else if (format === 'DOCX') {
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        res.setHeader('Content-Disposition', 'attachment; filename="af-performance.docx"');
+        // For now, send as text (in real app, would generate actual DOCX)
+        res.send(`DOCX Export:\n\n${exportContent}`);
+      } else if (format === 'CSV') {
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename="af-performance.csv"');
+        res.send(generateCSVContent(wins, statements));
+      } else {
+        res.status(400).json({ message: "Invalid format" });
+      }
+
+    } catch (error) {
+      console.error("Error exporting data:", error);
+      res.status(500).json({ message: "Failed to export data" });
+    }
+  });
+
   app.get('/api/export/statement/:id', isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;
