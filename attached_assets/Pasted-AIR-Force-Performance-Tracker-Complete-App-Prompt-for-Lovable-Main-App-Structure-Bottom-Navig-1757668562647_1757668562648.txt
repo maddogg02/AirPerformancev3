@@ -1,0 +1,97 @@
+AIR Force Performance Tracker - Complete App Prompt for Lovable
+📱 Main App Structure
+Bottom Navigation (5 Tabs)
+Dashboard - Gamified performance metrics
+Add Win - Quick AIR entry interface
+Library - Statement history & management
+Statements - AI-powered statement generator from performance entries
+Export - Professional report generation
+Settings - Profile & preferences
+🎮 Key Features Implementation
+1. Dashboard Screen (DashboardScreen.tsx)
+Gamified Performance Hub
+
+Key Metrics Cards: Total wins, weekly/monthly counts, current streak
+Progress Rings: Visual progress across 5 performance categories
+XP System: Level progression (250 XP per level) with achievement badges
+EPB Due Date Tracker: Visual countdown with urgency indicators
+Quick Actions: Direct access to Add Win and Library
+Category Stats: Distribution across Mission Execution, Leading People, Improving Unit, Managing Resources
+2. Add Win Screen (AddWinScreen.tsx)
+Rapid AIR Entry Interface
+
+3-Field AIR Format: Action, Impact, Result inputs
+Smart Suggestions:
+Verb chips above Action field (Led, Executed, Developed, etc.)
+Metric chips for Impact (increased, reduced, improved by X%)
+Result templates based on Action/Impact combination
+Category Selection: 5 military performance areas with icons
+Voice Input Ready: Microphone button for dictation
+Real-time Validation: Character counts, format enforcement
+< 20 Second Goal: Optimized for ultra-fast entry
+3. Library Screen (LibraryScreen.tsx)
+Performance Statement Management
+
+List View: Clean cards showing Action snippet, category pill, date
+Smart Search: Filter across all AIR fields simultaneously
+Category Filters: Toggle buttons for each performance area
+Multi-Select Mode: Long-press activation for bulk operations
+Export Integration: Selected entries feed into export system
+Edit Capabilities: Tap to edit individual statements
+4. Statements Screen (StatementsScreen.tsx) ⭐ NEW KEY FEATURE
+AI-Powered Statement Generator from Performance Entries
+
+Two-Phase Workflow:
+Selection Phase: Choose performance entries to transform
+Review Phase: Edit and refine generated statements
+Core Features:
+Entry Selection: Multi-select from existing performance entries with checkboxes
+Category Filtering: Filter entries by performance category
+Generation Modes:
+Single Entry: Transform 1 performance entry into polished statement
+Combine Multiple: Merge multiple entries into 1 comprehensive statement
+Generate Multiple: Create 2 distinct statements from selected entries
+AI Processing Capabilities:
+Smart Consolidation: Combines related performance entries intelligently
+Professional Enhancement: Transforms raw entries into Air Force-standard narrative format
+Context Preservation: Maintains specific numbers, operations, and achievements
+Format Standardization: Outputs proper ACTION--IMPACT--RESULT structure
+User Interface:
+Progress Indicators: Simple 2-step visual progress
+Entry Cards: Show action snippet with category icons and selection state
+Generation Options: Radio buttons for combine vs. separate statement modes
+Real-time Preview: Character counts and formatting validation
+Seamless Integration: Connects to CreateStatementsScreen for further refinement
+Example Workflow:
+User selects 3 maintenance entries about aircraft repairs
+Chooses "Combine into 1" mode
+AI generates: "Standardized repair procedures for 200 jet discrepancies impacting Operation Allied Persuasion assets--boosted mission readiness by quickly returning aircraft to flyable status--enabled continuous sortie production for ongoing operations"
+Opens in CreateStatementsScreen for synonym enhancement and ask-back refinement
+5. Export Screen (ExportProScreen.tsx)
+Professional Report Generation
+
+Multiple Formats: PDF, DOCX, CSV export options
+Report Types:
+Full Report (all statements with cover page)
+Category Summary (grouped by performance area)
+Timeline View (chronological with metrics)
+Date Range Filtering: Optional start/end date selection
+Category Selection: Choose specific performance areas
+Cover Page Data: Name, AFSC, date range, statistics
+System Share Integration: Native share sheet
+6. AI-Powered Statement Refinement (CreateStatementsScreen.tsx)
+Advanced Statement Enhancement Workshop
+
+Multi-Step Refinement Process:
+Initial Edit Phase: Direct text editing with synonym suggestions
+AI Feedback Generation: Comprehensive statement evaluation
+Ask-Back Questions: Targeted questions to gather missing details
+Statement Regeneration: AI creates improved versions using answers
+Key AI Features:
+Statement Evaluation: Scores statements 0-10 using Air University framework
+Ask-Back System: Generates 3 contextual questions with examples
+Intelligent Regeneration: Creates multiple improved versions
+Progress Tracking: Visual indicators for completion status
+Synonym Enhancement: Click-to-replace word suggestions
+🧠 Statements Screen AI Integration
+Advanced Statement Generation Prompts:

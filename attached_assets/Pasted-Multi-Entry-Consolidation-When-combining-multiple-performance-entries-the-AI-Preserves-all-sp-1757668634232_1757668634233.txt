@@ -1,0 +1,42 @@
+Multi-Entry Consolidation:
+When combining multiple performance entries, the AI:
+
+Preserves all specific numbers and operation names
+Identifies common themes and related achievements
+Creates logical action→impact→result flow
+Maintains Air Force narrative standards
+Outputs single cohesive statement or multiple distinct statements based on user preference
+🎯 User Journey: Performance Entry → Professional Statement
+Complete Workflow:
+Add Win Screen: User captures raw performance data (Action/Impact/Result)
+Library Screen: Entries accumulate and can be searched/filtered
+Statements Screen:
+Select relevant entries
+Choose generation mode (single/combine/multiple)
+AI transforms entries into professional statements
+CreateStatementsScreen:
+Edit generated statements with synonym suggestions
+Get AI feedback and ask-back questions
+Regenerate improved versions
+Export Screen: Generate professional documents for EPB submission
+Example Transformation:
+Raw Entry (Add Win):
+
+Action: "Fixed aircraft engine problems"
+Impact: "Got planes working again"
+Result: "Mission continued"
+Generated Statement (Statements Screen): "Executed comprehensive troubleshooting procedures on 15 engine discrepancies affecting critical airlift operations--restored 12 aircraft to mission-ready status within 48 hours--sustained 95% sortie completion rate during Operation Freedom's Sentinel"
+
+🏗️ Technical Implementation
+State Management:
+Generation Modes:
+Single Entry: Direct refinement and enhancement
+Multiple Combine: Intelligent consolidation into one statement
+Multiple Separate: Create distinct statements from selection
+AI Integration:
+Uses same useAIGeneration hook as other screens
+Specialized prompts for statement generation vs. refinement
+Preserves quantitative data and specific context
+Enforces Air Force narrative standards
+The Statements Screen is the critical bridge between raw performance tracking and professional military documentation, transforming everyday achievements into promotion-worthy narrative statements through intelligent AI processing.
+

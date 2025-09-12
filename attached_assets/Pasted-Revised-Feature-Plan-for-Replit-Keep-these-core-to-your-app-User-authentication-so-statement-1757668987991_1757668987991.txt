@@ -1,0 +1,83 @@
+Revised Feature Plan for Replit
+
+Keep these (core to your app):
+
+✅ User authentication (so statements/wins are tied to individual accounts)
+
+✅ Add Win screen (3-field AIR format → Action, Impact, Result)
+
+✅ Library screen (two collections: Wins + Statements, searchable by category/MPA)
+
+✅ AI-powered Statements screen (first draft generation + refinement loop)
+
+✅ Statement refinement system (AI feedback, ask-backs, synonym suggestions, regeneration, character count enforcement)
+
+✅ Performance categorization (the 5 Major Performance Areas)
+
+✅ Real-time validation & 350-character enforcement
+
+Modify these (to better fit your workflow):
+
+🟡 Dashboard → Keep it simple:
+
+Quick link to “Add Win”
+
+Count of Wins and Statements
+
+Optional “Last 3 Saved Statements” for quick access
+(Drop XP/badges/streaks — not your audience.)
+
+🟡 Export → Start basic:
+
+Export single statement as plain text
+
+Later expand to batch PDF/DOCX if needed
+
+Drop these (not aligned with your goals right now):
+
+❌ Gamified XP, streaks, badges (feels like fluff, won’t help adoption)
+
+❌ EPB countdown timer (adds stress, not structure — unless you really want it later)
+
+❌ Voice input (cool, but premature and complicates dev)
+
+🚀 Suggested Flow (What Replit Should Build)
+Bottom Navigation (4 tabs instead of 5)
+
+Wins (capture raw AIR entries)
+
+Statements (generate/refine/save bullets)
+
+Library (browse/search Wins + Statements by category)
+
+Account (basic settings + logout)
+
+Refinement Flow (Mandatory, Sequential)
+
+Step 1: 📝 First Draft (AI-generated)
+
+Step 2: 🔍 What the AI Noticed (feedback)
+
+Step 3: ❓ Help Improve This (ask-backs, must answer 2/3 before regeneration)
+
+Step 4: 💡 Synonym Suggestions (optional, collapsed)
+
+Step 5: 💾 Save to Library (unlocks only after regeneration with ask-backs)
+
+📝 What to Send Replit
+Revise the plan to focus on the core refinement workflow. Please remove XP system, streaks, badges, and countdown timer. Replace Dashboard with a simple overview showing "Add Win" shortcut, count of Wins/Statements, and last 3 saved statements. Voice input and fancy exports are not needed yet — just keep basic text export.
+
+The app should center on two main collections:
+- Wins (raw AIR entries)
+- Statements (refined outputs)
+
+Navigation should have 4 tabs: Wins, Statements, Library, Account.
+
+The refinement flow must be mandatory and step-based:
+Step 1: First Draft
+Step 2: What the AI Noticed
+Step 3: Help Improve This (user must answer 2 of 3 ask-backs before regeneration)
+Step 4: Synonym Suggestions (optional)
+Step 5: Save to Library (unlocked after regeneration)
+
+Character count (350 max) should be enforced everywhere. AI prompts for draft, feedb
