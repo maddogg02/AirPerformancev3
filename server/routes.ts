@@ -128,6 +128,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/statements/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const statement = await storage.getStatementById(id);
+      
+      if (!statement) {
+        return res.status(404).json({ message: "Statement not found" });
+      }
+      
+      res.json(statement);
+    } catch (error) {
+      console.error("Error fetching statement:", error);
+      res.status(500).json({ message: "Failed to fetch statement" });
+    }
+  });
+
   // Refinement workflow routes
   app.post('/api/refinement/:statementId/feedback', isAuthenticated, async (req: any, res) => {
     try {

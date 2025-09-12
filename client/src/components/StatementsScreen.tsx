@@ -4,13 +4,13 @@ import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PERFORMANCE_CATEGORIES } from "../lib/constants";
-import { Sparkles, Check } from "lucide-react";
+import { Sparkles, Target, Users, TrendingUp, Zap, ArrowRight } from "lucide-react";
 
 interface StatementsScreenProps {
   onStartRefinement: (statementId: string) => void;
@@ -19,7 +19,7 @@ interface StatementsScreenProps {
 export default function StatementsScreen({ onStartRefinement }: StatementsScreenProps) {
   const [selectedWins, setSelectedWins] = useState<string[]>([]);
   const [generationMode, setGenerationMode] = useState<'combine' | 'separate'>('combine');
-  const [categoryFilter, setCategoryFilter] = useState<string>('All');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const { toast } = useToast();
 
   // Fetch wins
@@ -61,7 +61,7 @@ export default function StatementsScreen({ onStartRefinement }: StatementsScreen
   });
 
   const filteredWins = (wins as any[]).filter((win: any) => 
-    categoryFilter === 'All' || win.category === categoryFilter
+    categoryFilter === 'all' || win.category === categoryFilter
   );
 
   const handleWinToggle = (winId: string) => {
@@ -88,14 +88,40 @@ export default function StatementsScreen({ onStartRefinement }: StatementsScreen
     });
   };
 
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case "Mission Execution": return "bg-primary text-primary-foreground";
-      case "Leading People": return "bg-accent text-accent-foreground";
-      case "Improving Unit": return "bg-secondary text-secondary-foreground";
-      case "Managing Resources": return "bg-muted text-muted-foreground";
-      default: return "bg-muted text-muted-foreground";
-    }
+  const categoryConfig = {
+    'Mission Execution': {
+      icon: Target,
+      color: 'text-primary',
+      bgColor: 'bg-primary/10',
+      badgeColor: 'bg-primary text-primary-foreground'
+    },
+    'Leading People': {
+      icon: Users,
+      color: 'text-green-600',
+      bgColor: 'bg-green-50',
+      badgeColor: 'bg-green-600 text-white'
+    },
+    'Improving Unit': {
+      icon: TrendingUp,
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-50',
+      badgeColor: 'bg-blue-600 text-white'
+    },
+    'Managing Resources': {
+      icon: Zap,
+      color: 'text-purple-600',
+      bgColor: 'bg-purple-50',
+      badgeColor: 'bg-purple-600 text-white'
+    },
+  } as const;
+
+  const getCategoryConfig = (category: string) => {
+    return categoryConfig[category as keyof typeof categoryConfig] || {
+      icon: Target,
+      color: 'text-muted-foreground',
+      bgColor: 'bg-muted/10',
+      badgeColor: 'bg-muted text-muted-foreground'
+    };
   };
 
   const formatDate = (dateString: string) => {
@@ -122,126 +148,152 @@ export default function StatementsScreen({ onStartRefinement }: StatementsScreen
 
   return (
     <div className="p-4 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="text-center space-y-3">
         <h2 className="text-xl font-semibold text-foreground">Generate Statement</h2>
-        <span className="text-sm text-muted-foreground">AI-Powered</span>
+        <div className="flex items-center justify-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-primary" />
+          <div className="w-2 h-2 rounded-full bg-muted" />
+          <div className="w-2 h-2 rounded-full bg-muted" />
+        </div>
+        <p className="text-sm text-muted-foreground">Step 1: Select wins to transform</p>
       </div>
 
-      {/* Progress Steps */}
+
+      {/* Win Selection */}
       <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-medium">
-                1
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center justify-between">
+            Select Wins ({selectedWins.length} selected)
+            <span className="text-sm font-normal text-muted-foreground">AI-Powered</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Category Filter Dropdown */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Filter by Category</Label>
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger data-testid="category-filter">
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {PERFORMANCE_CATEGORIES.map((category) => {
+                  const config = getCategoryConfig(category);
+                  const Icon = config.icon;
+                  return (
+                    <SelectItem key={category} value={category}>
+                      <div className="flex items-center gap-2">
+                        <Icon className={`w-4 h-4 ${config.color}`} />
+                        {category}
+                      </div>
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Results Count */}
+          <div className="text-sm text-muted-foreground">
+            {filteredWins.length} of {(wins as any[]).length} {filteredWins.length === 1 ? 'win' : 'wins'} 
+            {categoryFilter !== 'all' && ` in ${categoryFilter}`}
+          </div>
+
+          {/* Win Cards */}
+          <div className="space-y-3 max-h-80 overflow-y-auto">
+            {filteredWins.length === 0 ? (
+              <div className="text-center py-6">
+                <p className="text-muted-foreground">No wins found. Add some wins first!</p>
               </div>
-              <span className="text-sm font-medium">First Draft</span>
-            </div>
-            <div className="w-8 border-t border-border"></div>
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center text-xs font-medium">
-                2
-              </div>
-              <span className="text-sm text-muted-foreground">AI Feedback</span>
-            </div>
-            <div className="w-8 border-t border-border"></div>
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center text-xs font-medium">
-                3
-              </div>
-              <span className="text-sm text-muted-foreground">Improve</span>
-            </div>
+            ) : (
+              filteredWins.map((win: any) => {
+                const config = getCategoryConfig(win.category);
+                const Icon = config.icon;
+                const isSelected = selectedWins.includes(win.id);
+                return (
+                  <Card 
+                    key={win.id} 
+                    className={`cursor-pointer transition-all hover:shadow-md ${
+                      isSelected ? `border-primary shadow-sm ${config.bgColor}` : ''
+                    }`}
+                    onClick={() => handleWinToggle(win.id)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start space-x-3">
+                        <Checkbox
+                          data-testid={`checkbox-win-${win.id}`}
+                          checked={isSelected}
+                          onCheckedChange={() => handleWinToggle(win.id)}
+                          className="mt-1"
+                        />
+                        <div className="flex-1 space-y-2">
+                          <p className="text-sm text-foreground leading-relaxed">
+                            {win.action.length > 80 ? `${win.action.substring(0, 80)}...` : win.action}
+                          </p>
+                          <div className="flex items-center space-x-2">
+                            <Icon className={`w-4 h-4 ${config.color}`} />
+                            <Badge className={`text-xs ${config.badgeColor}`}>
+                              {win.category}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              {formatDate(win.createdAt)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })
+            )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Win Selection */}
-      <div className="space-y-3">
-        <Label className="text-sm font-medium text-foreground">Select Wins to Transform</Label>
-        
-        {/* Category Filter */}
-        <div className="flex gap-2 overflow-x-auto pb-2">
-          <button 
-            data-testid="filter-all"
-            className={`px-3 py-1 rounded-full text-xs whitespace-nowrap ${
-              categoryFilter === 'All' 
-                ? 'bg-primary text-primary-foreground' 
-                : 'bg-muted text-muted-foreground'
-            }`}
-            onClick={() => setCategoryFilter('All')}
-          >
-            All
-          </button>
-          {PERFORMANCE_CATEGORIES.map((category) => (
-            <button
-              key={category}
-              data-testid={`filter-${category.toLowerCase().replace(/\s+/g, '-')}`}
-              className={`px-3 py-1 rounded-full text-xs whitespace-nowrap ${
-                categoryFilter === category 
-                  ? 'bg-primary text-primary-foreground' 
-                  : 'bg-muted text-muted-foreground'
-              }`}
-              onClick={() => setCategoryFilter(category)}
-            >
-              {category.split(' ')[0]}
-            </button>
-          ))}
-        </div>
-
-        {/* Win Cards */}
-        <div className="space-y-3 max-h-80 overflow-y-auto">
-          {filteredWins.length === 0 ? (
-            <Card>
-              <CardContent className="p-6 text-center">
-                <p className="text-muted-foreground">No wins found. Add some wins first!</p>
-              </CardContent>
-            </Card>
-          ) : (
-            filteredWins.map((win: any) => (
-              <Card key={win.id} className="cursor-pointer hover:shadow-md transition-shadow">
-                <CardContent className="p-4">
-                  <div className="flex items-start space-x-3">
-                    <Checkbox
-                      data-testid={`checkbox-win-${win.id}`}
-                      checked={selectedWins.includes(win.id)}
-                      onCheckedChange={() => handleWinToggle(win.id)}
-                      className="mt-1"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <Badge className={`text-xs ${getCategoryColor(win.category)}`}>
-                          {win.category}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {formatDate(win.createdAt)}
-                        </span>
-                      </div>
-                      <p className="text-sm text-foreground line-clamp-2">
-                        {win.action.substring(0, 60)}...
-                      </p>
-                    </div>
+      {/* Generation Mode Options */}
+      {selectedWins.length >= 2 && (
+        <Card className="border-primary/20">
+          <CardContent className="pt-6">
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium">How would you like to process {selectedWins.length} wins?</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  size="sm"
+                  variant={generationMode === 'combine' ? 'default' : 'ghost'}
+                  className="text-xs h-auto py-3 px-4"
+                  onClick={() => setGenerationMode('combine')}
+                  data-testid="mode-combine"
+                >
+                  <ArrowRight className="w-3 h-3 mr-2" />
+                  <div className="text-left">
+                    <div className="font-medium">Combine</div>
+                    <div className="text-xs opacity-70">Into 1 statement</div>
                   </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
-        </div>
-      </div>
-
-      {/* Generation Options */}
-      <div className="space-y-3">
-        <Label className="text-sm font-medium text-foreground">Generation Mode</Label>
-        <RadioGroup value={generationMode} onValueChange={(value: any) => setGenerationMode(value)}>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="combine" id="combine" data-testid="radio-combine" />
-            <Label htmlFor="combine" className="text-sm">Combine into 1 statement</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="separate" id="separate" data-testid="radio-separate" />
-            <Label htmlFor="separate" className="text-sm">Generate separate statements</Label>
-          </div>
-        </RadioGroup>
-      </div>
+                </Button>
+                <Button
+                  size="sm" 
+                  variant={generationMode === 'separate' ? 'default' : 'ghost'}
+                  className="text-xs h-auto py-3 px-4"
+                  onClick={() => setGenerationMode('separate')}
+                  data-testid="mode-separate"
+                >
+                  <Sparkles className="w-3 h-3 mr-2" />
+                  <div className="text-left">
+                    <div className="font-medium">Separate</div>
+                    <div className="text-xs opacity-70">Multiple statements</div>
+                  </div>
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {generationMode === 'combine' 
+                  ? 'Merge all selected wins into one comprehensive statement'
+                  : 'Generate individual statements for each selected win'
+                }
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Generate Button */}
       <Button 

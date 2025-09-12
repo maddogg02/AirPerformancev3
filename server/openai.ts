@@ -39,7 +39,7 @@ Generate individual polished performance statements:`;
           content: prompt
         }
       ],
-      max_tokens: 500,
+      max_completion_tokens: 500,
     });
 
     return response.choices[0].message.content || "";
@@ -152,7 +152,7 @@ Generate the improved statement:`;
           content: prompt
         }
       ],
-      max_tokens: 200,
+      max_completion_tokens: 200,
     });
 
     return response.choices[0].message.content || originalStatement;

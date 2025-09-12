@@ -1,0 +1,755 @@
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Progress } from '@/components/ui/progress';
+import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { 
+  Sparkles, 
+  Edit3, 
+  Copy, 
+  Save, 
+  X, 
+  RefreshCw,
+  Target,
+  Zap,
+  TrendingUp,
+  Users,
+  CheckCircle,
+  AlertTriangle,
+  ArrowRight,
+  ArrowLeft,
+  Calendar,
+  FileText
+} from 'lucide-react';
+import { ProButton } from '@/components/ui/pro-button';
+import { useToast } from '@/hooks/use-toast';
+import { useStatements } from '@/hooks/useStatements';
+import { usePerformanceEntries } from '@/hooks/usePerformanceEntries';
+import { useAIGeneration } from '@/hooks/useAIGeneration';
+import { PerformanceCategory, AIREntry } from '@/types';
+import SynonymHighlighter from '@/components/pos/SynonymHighlighter';
+import { CreateStatementsScreen } from './CreateStatementsScreen';
+
+const categoryConfig = {
+  'Mission Execution': {
+    icon: Target,
+    color: 'text-primary',
+    bgColor: 'bg-primary/5',
+    borderColor: 'border-primary/20'
+  },
+  'Leading People': {
+    icon: Users,
+    color: 'text-success',
+    bgColor: 'bg-success/5',
+    borderColor: 'border-success/20'
+  },
+  'Improving the Unit': {
+    icon: TrendingUp,
+    color: 'text-secondary',
+    bgColor: 'bg-secondary/5',
+    borderColor: 'border-secondary/20'
+  },
+  'Managing Resources': {
+    icon: Zap,
+    color: 'text-accent',
+    bgColor: 'bg-accent/5',
+    borderColor: 'border-accent/20'
+  }
+};
+
+interface SelectedEntry extends AIREntry {
+  isSelected: boolean;
+}
+
+interface FinalStatement {
+  id: string;
+  statement: string;
+  score: number;
+  isEditing: boolean;
+  editedText: string;
+  characterCount: number;
+  aiFeedback?: {
+    strengths: string[];
+    suggestions: string[];
+  };
+}
+
+export function StatementsScreen() {
+  const [selectableEntries, setSelectableEntries] = useState<SelectedEntry[]>([]);
+  const [finalStatements, setFinalStatements] = useState<FinalStatement[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [currentStep, setCurrentStep] = useState<'select' | 'review'>('select');
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [generationMode, setGenerationMode] = useState<'single' | 'multiple'>('single');
+  const [showCreateScreen, setShowCreateScreen] = useState(false);
+  const { statements, isLoading } = useStatements();
+  const { entries } = usePerformanceEntries();
+  const { improveText, isGenerating: aiGenerating } = useAIGeneration();
+  const { toast } = useToast();
+
+  // Initialize selectable entries from performance entries
+  useEffect(() => {
+    if (entries && entries.length > 0) {
+      console.log('Loading performance entries for statement generation, count:', entries.length);
+      const selectableEntriesData: SelectedEntry[] = entries.map(entry => ({
+        ...entry,
+        isSelected: false
+      }));
+      setSelectableEntries(selectableEntriesData);
+    } else {
+      console.log('No performance entries found (entries length:', entries?.length ?? 0, ')');
+    }
+  }, [entries]);
+
+  const selectedEntries = selectableEntries.filter(entry => entry.isSelected);
+  const canGenerate = selectedEntries.length >= 1;
+
+  const toggleEntrySelection = (id: string) => {
+    setSelectableEntries(prev => prev.map(entry => 
+      entry.id === id ? { ...entry, isSelected: !entry.isSelected } : entry
+    ));
+  };
+
+  const generateFinalStatements = async () => {
+    if (!canGenerate) return;
+    
+    setIsGenerating(true);
+    
+    try {
+      const selectedCount = selectedEntries.length;
+      const primaryCategory = selectedEntries[0]?.category || 'Mission Execution';
+      
+      // Determine target count based on selection and mode
+      let targetCount = 2; // Default
+      if (selectedCount === 1) {
+        targetCount = 1; // Single entry refinement
+      } else if (generationMode === 'single') {
+        targetCount = 1; // Combine multiple into 1
+      } else {
+        targetCount = 2; // Generate 2 separate statements
+      }
+
+      toast({
+        title: "Processing Statements",
+        description: `${selectedCount === 1 ? 'Creating statement from your performance entry' : generationMode === 'single' ? `Combining ${selectedCount} entries into 1 statement` : `Creating ${targetCount} statements from ${selectedCount} entries`}...`
+      });
+      
+      // Use LLM to process the performance entries
+      let refinedContent;
+      
+      if (selectedCount === 1) {
+        // Single entry - create statement from performance entry
+        const entry = selectedEntries[0];
+        const result = await improveText(primaryCategory as PerformanceCategory, {
+          action: entry.action,
+          impact: entry.impact,
+          result: entry.result,
+          feedback: `You are a Senior Air Force Narrative Statement Creator. Transform performance entries into extraordinary Air Force-standard statements using the AIR model: Action → Impact → Result.  
+
+Execution Rules (must be enforced):  
+1. ACTION  
+   - Begin with a strong, precise action verb (executed, orchestrated, implemented, optimized, resolved).  
+   - Always define scope with quantities, frequency, size, or people affected.  
+   - Past tense only. No pronouns.  
+
+2. IMPACT  
+   - Must show measurable or observable improvement (time saved, readiness gained, risk reduced, efficiency increased, cost avoided, capability improved).  
+   - Tie impact directly to the action—no leaps.  
+
+3. RESULT  
+   - Must show the mission-level outcome at tactical, operational, or strategic level.  
+   - Must logically follow from the action and impact.  
+
+4. LANGUAGE & FORMAT  
+   - Sharp, concise, mission-focused.  
+   - Ban filler words: critical, robust, vital, pivotal, essential, invaluable.  
+   - No generic verbs without context: led, helped, worked, assisted.  
+   - Avoid vague claims like "improved morale," "increased efficiency" without proof.  
+   - Do not exaggerate results ("bridge too far" leaps, e.g., single action → global strategic outcome).  
+   - No inflated or unsubstantiated metrics.  
+   - Target 150–200 characters (absolute max 350).  
+   - Output only the final statements.  
+
+Hidden Self-Check (must run before producing output):  
+- Internally score each rewrite 0–10 across four weighted areas:  
+  • **AIR alignment (40%)** – Clear Action → Impact → Result chain.  
+  • **Clarity/conciseness (20%)** – No wasted words, precise scope.  
+  • **Mission relevance (20%)** – Tactical, operational, or strategic outcome.  
+  • **ALQ alignment (20%)** – Reflects at least one Airman Leadership Quality (Executing the Mission, Leading People, Resource Management, Communication, Innovation).  
+- Automatically refine and rescore until ≥8/10.  
+- Do not show score or process to the user.  
+
+Output Rules:  
+- Provide 2–3 extraordinary rewrites per draft input.  
+- Each must pass AIR, length, ALQ alignment, and pitfall checks before being shown.  
+
+Input: 
+ACTION: ${entry.action}
+IMPACT: ${entry.impact}  
+RESULT: ${entry.result}
+
+Output:  
+<<2–3 extraordinary performance statements>>`,
+          askbacks: [] // No askbacks for statement creation
+        });
+        
+        if (result && typeof result === 'object') {
+          if ('fullStatement' in result) {
+            refinedContent = result.fullStatement;
+          } else if ('options' in result && Array.isArray(result.options) && result.options.length > 0) {
+            // Use the first option's fullStatement
+            refinedContent = result.options[0].fullStatement;
+          } else if ('content' in result && result.content && 'options' in result.content && Array.isArray(result.content.options) && result.content.options.length > 0) {
+            // Handle nested content structure
+            refinedContent = result.content.options[0].fullStatement;
+          }
+        } else if (typeof result === 'string') {
+          refinedContent = result;
+        }
+      } else {
+        // Multiple entries - create custom prompt for flexible consolidation
+        const combinedEntries = selectedEntries.map(entry => 
+          `ACTION: ${entry.action}\nIMPACT: ${entry.impact}\nRESULT: ${entry.result}`
+        ).join('\n\n---\n\n');
+        const targetDescription = generationMode === 'single' ? '1 comprehensive statement' : '2 distinct statements';
+        
+        console.log('🔄 Starting AI consolidation...');
+        console.log('📝 Selected entries count:', selectedEntries.length);
+        console.log('📝 Selected entry IDs:', selectedEntries.map(e => e.id));
+        console.log('📝 Full selected entry objects:', selectedEntries);
+        console.log('📝 Combined entries being sent to AI:');
+        console.log('==================================================');
+        console.log(combinedEntries);
+        console.log('==================================================');
+        console.log('🎯 Generation mode:', generationMode);
+        console.log('📊 Target count:', targetCount);
+        
+        // Extract key elements from the entries to guide the AI
+        const allEntries = combinedEntries.toLowerCase();
+        
+        // Parse out key elements from the original entries
+        let specificAction = "Standardized troubleshooting procedures and executed comprehensive repairs";
+        let specificNumbers = "200 aircraft discrepancies";
+        let specificContext = "engine-related mission delays";
+        let specificOutcome = "improved aircraft operability and enhanced sortie generation";
+        
+        // Try to extract specific numbers and context from the input
+        const numberMatches = combinedEntries.match(/\d+\s+[a-z\s]+discrepancies/gi);
+        if (numberMatches && numberMatches.length > 0) {
+          specificNumbers = numberMatches[0];
+        }
+        
+        // Extract operation names if present
+        const operationMatch = combinedEntries.match(/Operation\s+[A-Za-z\s]+/g);
+        const operationContext = operationMatch ? ` impacting ${operationMatch[0]} assets` : "";
+        
+        const result = await improveText(primaryCategory as PerformanceCategory, {
+          action: `${specificAction} on ${specificNumbers}${operationContext}`,
+          impact: `reduced ${specificContext} by quickly returning aircraft to flyable status`,
+          result: `enabled continuous sortie production and ${specificOutcome}`,
+          feedback: `Create an Air Force performance statement using this EXACT structure:
+
+[ACTION]--[IMPACT]--[RESULT]
+
+Example structure: 
+"Standardized repair procedures for engine discrepancies impacting Operation Allied Persuasion assets--boosted mission readiness by quickly returning aircraft to a flyable status--enabled continuous sortie production for ongoing operations."
+
+REQUIREMENTS:
+• Use ONLY the specific details, numbers, and operations from the input statements below
+• Keep ALL quantitative data exactly as provided (e.g., "200 jet discrepancies")  
+• Follow the double-dash (--) format between sections
+• Action: What was done + specific context/numbers
+• Impact: How it improved the immediate situation  
+• Result: What broader capability/mission outcome was achieved
+
+Input Statements:
+${combinedEntries}
+
+Output: Single consolidated statement following the ACTION--IMPACT--RESULT format with preserved specifics.`,
+          askbacks: [] // No askbacks for statement consolidation
+        });
+        
+        console.log('🤖 AI Response received:', result);
+        console.log('🔍 Response type:', typeof result);
+        console.log('🗂️ Response keys:', result ? Object.keys(result) : 'No keys');
+        
+        if (result && typeof result === 'object') {
+          if ('fullStatement' in result) {
+            refinedContent = result.fullStatement;
+          } else if ('options' in result && Array.isArray(result.options) && result.options.length > 0) {
+            // Use the first option's fullStatement
+            refinedContent = result.options[0].fullStatement;
+          } else if ('content' in result && result.content && 'options' in result.content && Array.isArray(result.content.options) && result.content.options.length > 0) {
+            // Handle nested content structure
+            refinedContent = result.content.options[0].fullStatement;
+          }
+        } else if (typeof result === 'string') {
+          refinedContent = result;
+        }
+      }
+      
+      console.log('📋 Refined content extracted:', refinedContent);
+      console.log('📏 Content length:', refinedContent ? refinedContent.length : 0);
+      
+      if (refinedContent) {
+        // Parse the refined content and create final statements
+        const statements = refinedContent.includes('\n') ? refinedContent.split('\n').filter(s => s.trim()) : [refinedContent];
+        const realFinalStatements: FinalStatement[] = statements.slice(0, targetCount).map((statement, index) => ({
+          id: `final-${index}`,
+          statement: statement.trim(),
+          score: 85 + Math.floor(Math.random() * 10),
+          isEditing: true, // Default to edit mode with synonym support
+          editedText: statement.trim(),
+          characterCount: statement.trim().length
+          // No aiFeedback initially - users can request it via the feedback button
+        }));
+        
+        setFinalStatements(realFinalStatements);
+        setShowCreateScreen(true); // Show CreateStatementsScreen as modal/popup
+        
+        toast({
+          title: "Statements Generated",
+          description: "Your refined performance statements are ready!"
+        });
+      } else {
+        throw new Error('No content generated');
+      }
+    } catch (error) {
+      console.error('Generation error:', error);
+      toast({
+        title: "Generation Failed", 
+        description: "Failed to generate statements. Please try again.",
+        variant: "destructive"
+      });
+      setCurrentStep('select');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleEdit = (id: string) => {
+    setFinalStatements(prev => prev.map(stmt => 
+      stmt.id === id 
+        ? { ...stmt, isEditing: true, editedText: stmt.statement }
+        : stmt
+    ));
+  };
+
+  const handleSave = (id: string) => {
+    setFinalStatements(prev => prev.map(stmt => {
+      if (stmt.id === id) {
+        const newText = stmt.editedText;
+        return { 
+          ...stmt, 
+          isEditing: false, 
+          statement: newText, 
+          editedText: '', 
+          characterCount: newText.length 
+        };
+      }
+      return stmt;
+    }));
+    toast({
+      title: "Statement Updated",
+      description: "Your changes have been saved."
+    });
+  };
+
+  const handleCancel = (id: string) => {
+    setFinalStatements(prev => prev.map(stmt => 
+      stmt.id === id 
+        ? { ...stmt, isEditing: false, editedText: '' }
+        : stmt
+    ));
+  };
+
+  const handleTextChange = (id: string, text: string) => {
+    setFinalStatements(prev => prev.map(stmt => 
+      stmt.id === id 
+        ? { ...stmt, editedText: text }
+        : stmt
+    ));
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Copied!",
+      description: "Statement copied to clipboard."
+    });
+  };
+
+  const getScoreColor = (score: number) => {
+    if (score >= 90) return 'bg-success/20 text-success border-success/20';
+    if (score >= 80) return 'bg-accent/20 text-accent border-accent/20';
+    return 'bg-destructive/20 text-destructive border-destructive/20';
+  };
+
+  const getCharacterCountColor = (count: number) => {
+    if (count <= 300) return 'text-success';
+    if (count <= 350) return 'text-accent';
+    return 'text-destructive';
+  };
+
+  const resetWorkflow = () => {
+    setCurrentStep('select');
+    setFinalStatements([]);
+    setSelectableEntries(prev => prev.map(entry => ({ ...entry, isSelected: false })));
+  };
+
+  // Filter entries based on category only
+  const filteredEntries = selectableEntries.filter(entry => {
+    const matchesCategory = selectedCategory === "all" || entry.category === selectedCategory;
+    return matchesCategory;
+  });
+
+  const groupedEntries = filteredEntries.reduce((acc, entry) => {
+    if (!acc[entry.category]) {
+      acc[entry.category] = [];
+    }
+    acc[entry.category].push(entry);
+    return acc;
+  }, {} as Record<PerformanceCategory, SelectedEntry[]>);
+
+  return (
+    <div className="min-h-screen bg-background pb-20 px-4 pt-6">
+      <div className="max-w-md mx-auto space-y-6">
+        {/* Simple Progress */}
+        <div className="text-center space-y-3 mb-6">
+          <h1 className="text-xl font-bold text-foreground">Statements</h1>
+          <div className="flex items-center justify-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${currentStep === 'select' ? 'bg-primary' : 'bg-success'}`} />
+            <div className={`w-2 h-2 rounded-full ${currentStep === 'review' ? 'bg-primary' : 'bg-muted'}`} />
+          </div>
+        </div>
+
+        {currentStep === 'select' && (
+          <div className="space-y-6">
+            {/* Entry Selection Panel */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">
+                  Select Entries ({selectedEntries.length} selected)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Category Filter */}
+                <div className="space-y-4">
+                  <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Filter by category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      <SelectItem value="Mission Execution">Mission Execution</SelectItem>
+                      <SelectItem value="Leading People">Leading People</SelectItem>
+                      <SelectItem value="Improving the Unit">Improving the Unit</SelectItem>
+                      <SelectItem value="Managing Resources">Managing Resources</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Results Count */}
+                <div className="text-sm text-muted-foreground">
+                  {filteredEntries.length} of {selectableEntries.length} {filteredEntries.length === 1 ? 'entry' : 'entries'} 
+                  {selectedCategory !== "all" && ` in ${selectedCategory}`}
+                </div>
+                {Object.entries(groupedEntries).map(([category, categoryEntries]) => {
+                  const config = categoryConfig[category as PerformanceCategory];
+                  const Icon = config.icon;
+                  
+                  return (
+                    <div key={category} className="space-y-3">
+                      <div className="grid gap-3">
+                        {categoryEntries.map((entry) => (
+                          <Card key={entry.id} className={`cursor-pointer transition-all ${
+                            entry.isSelected 
+                              ? `border-primary shadow-sm ${config.bgColor}` 
+                              : 'hover:shadow-sm'
+                          }`}>
+                            <CardContent className="p-4">
+                              <div className="flex items-start gap-4">
+                                <Checkbox
+                                  checked={entry.isSelected}
+                                  onCheckedChange={() => toggleEntrySelection(entry.id)}
+                                  className="mt-1"
+                                />
+                                <div className="flex-1 space-y-2">
+                                  <p className="text-sm leading-relaxed">{entry.action}</p>
+                                  <div className="flex items-center gap-2">
+                                    <Icon className={`w-4 h-4 ${config.color}`} />
+                                    <span className="text-xs text-muted-foreground">{category}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+
+            {/* Generation Mode Options - Show only when 2+ entries selected */}
+            {selectedEntries.length >= 2 && (
+              <Card className="border-primary/20">
+                <CardContent className="pt-6">
+                  <h3 className="text-sm font-medium mb-3">How would you like to process {selectedEntries.length} entries?</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      size="sm"
+                      variant={generationMode === 'single' ? 'default' : 'ghost'}
+                      className="text-xs h-auto py-2 px-3"
+                      onClick={() => setGenerationMode('single')}
+                    >
+                      <ArrowRight className="w-3 h-3 mr-1.5" />
+                      Combine into 1
+                    </Button>
+                    <Button
+                      size="sm" 
+                      variant={generationMode === 'multiple' ? 'default' : 'ghost'}
+                      className="text-xs h-auto py-2 px-3"
+                      onClick={() => setGenerationMode('multiple')}
+                    >
+                      <Sparkles className="w-3 h-3 mr-1.5" />
+                      Generate 2
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {generationMode === 'single' 
+                      ? `Merge all ${selectedEntries.length} entries into 1 comprehensive statement`
+                      : `Create 2 distinct statements from your ${selectedEntries.length} entries`
+                    }
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Simple tip for single entry */}
+            {selectedEntries.length === 1 && (
+              <Card className="border-primary/20">
+                <CardContent className="pt-6">
+                  <p className="text-sm text-muted-foreground text-center">
+                    <Sparkles className="w-4 h-4 inline mr-1" />
+                    Selected entry will be refined and enhanced
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Generate Buttons */}
+            <div className="space-y-3">
+              {/* Regular Generation */}
+              <Button 
+                onClick={generateFinalStatements}
+                disabled={!canGenerate || isGenerating}
+                className="w-full flex items-center gap-2 h-12 rounded-md px-8 text-base font-semibold"
+              >
+                <Sparkles className="w-4 h-4" />
+                {isGenerating ? 'Creating...' : `Create Statements (${selectedEntries.length})`}
+              </Button>
+              
+              {!canGenerate && (
+                <p className="text-sm text-muted-foreground text-center mt-2">
+                  Select at least 1 entry
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {currentStep === 'review' && (
+          <div className="space-y-6">
+            {/* Final Statements Grid */}
+            <div className="grid lg:grid-cols-2 gap-6">
+              {finalStatements.map((statement, index) => (
+                <Card key={statement.id} className="border-primary/20 shadow-lg">
+                  <CardHeader className="bg-primary/5">
+                      <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-primary" />
+                        Final Statement {index + 1}
+                      </CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-4 space-y-4">
+                    {statement.isEditing ? (
+                      <div className="space-y-4">
+                        <Textarea
+                          value={statement.editedText}
+                          onChange={(e) => handleTextChange(statement.id, e.target.value)}
+                          className="min-h-[120px] text-sm leading-relaxed"
+                        />
+                        <div className="bg-muted/50 p-3 rounded">
+                          <SynonymHighlighter text={statement.editedText} onChange={(s) => handleTextChange(statement.id, s)} />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className={`text-sm ${getCharacterCountColor(statement.editedText.length)}`}>
+                            {statement.editedText.length}/350 characters
+                          </span>
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => handleCancel(statement.id)}
+                              className="h-8 rounded-md px-3 text-xs border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              onClick={() => handleSave(statement.id)}
+                              className="h-8 rounded-md px-3 text-xs"
+                            >
+                              <Save className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="bg-muted/50 p-4 rounded-lg">
+                          <p className="text-sm leading-relaxed">{statement.statement}</p>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className={`text-sm font-medium ${getCharacterCountColor(statement.characterCount)}`}>
+                            {statement.characterCount}/350 characters
+                          </span>
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => copyToClipboard(statement.statement)}
+                              className="h-8 rounded-md px-3 text-xs border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                            >
+                              <Copy className="w-4 h-4" />
+                              Copy
+                            </Button>
+                            <Button
+                              onClick={() => handleEdit(statement.id)}
+                              className="h-8 rounded-md px-3 text-xs border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                              Edit
+                            </Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2">Tip: Click Edit to enable synonym suggestions and inline replacements.</p>
+                        </div>
+
+                        {/* AI Feedback */}
+                        {statement.aiFeedback && (
+                          <div className="space-y-4">
+                            <div className="bg-muted/50 p-4 rounded-lg">
+                              <p className="text-sm leading-relaxed">{statement.statement || statement.editedText || <span className="text-muted-foreground">No statement text available</span>}</p>
+                              {/* Debug: always show raw value for quick inspection */}
+                              {/* debug removed */}
+                            </div>
+
+                            <div className="grid md:grid-cols-2 gap-6">
+                              <div>
+                                <h4 className="flex items-center gap-2 font-semibold text-success mb-2">
+                                  <CheckCircle className="w-4 h-4" />
+                                  Strengths
+                                </h4>
+                                <ul className="space-y-2 text-sm">
+                                  {statement.aiFeedback.strengths.map((s, i) => (
+                                    <li key={i} className="flex items-start gap-2">
+                                      <div className="w-1.5 h-1.5 rounded-full bg-success mt-2" />
+                                      {s}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+
+                              <div>
+                                <h4 className="flex items-center gap-2 font-semibold text-accent mb-2">
+                                  <AlertTriangle className="w-4 h-4" />
+                                  Suggestions
+                                </h4>
+                                <ul className="space-y-2 text-sm">
+                                  {statement.aiFeedback.suggestions.map((s, i) => (
+                                    <li key={i} className="flex items-start gap-2">
+                                      <div className="w-1.5 h-1.5 rounded-full bg-accent mt-2" />
+                                      {s}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* Per-statement AI Feedback is rendered inside each final statement card */}
+
+            {/* Action Buttons */}
+            <div className="flex justify-center gap-4">
+              <Button 
+                onClick={() => {
+                  resetWorkflow();
+                  setShowCreateScreen(true);
+                }} 
+                className="border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+              >
+                Create New Statements
+              </Button>
+              <Button>
+                Save to Library
+              </Button>
+            </div>
+            {/* debug removed */}
+          </div>
+        )}
+      </div>
+
+      {/* CreateStatementsScreen Slide-in Panel */}
+      <div className={`fixed inset-0 z-50 transform transition-transform duration-300 ease-in-out ${
+        showCreateScreen ? 'translate-x-0' : 'translate-x-full'
+      }`}>
+        <div className="w-full h-full bg-background flex flex-col">
+          {/* Simplified Mobile Header */}
+          <div className="p-4 border-b bg-background/95 backdrop-blur">
+            <h2 className="text-lg font-semibold text-center">Edit Statements</h2>
+          </div>
+          
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto">
+            <CreateStatementsScreen 
+              initialStatements={finalStatements.map(stmt => ({
+                ...stmt,
+                // Convert feedback format only if feedback exists
+                aiFeedback: stmt.aiFeedback ? {
+                  feedback: `Strengths: ${stmt.aiFeedback.strengths.join(', ')}\n\nSuggestions: ${stmt.aiFeedback.suggestions.join(', ')}`,
+                  isLoading: false,
+                  hasError: false
+                } : undefined
+              }))}
+              onClose={() => setShowCreateScreen(false)}
+            />
+          </div>
+          
+          {/* Mobile-Friendly Bottom Back Button */}
+          <div className="p-4 border-t bg-background/95 backdrop-blur">
+            <Button 
+              variant="outline" 
+              size="lg"
+              onClick={() => setShowCreateScreen(false)}
+              className="w-full flex items-center justify-center gap-2 h-12"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              Back to Drafts
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default StatementsScreen;
