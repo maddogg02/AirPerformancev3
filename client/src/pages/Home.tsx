@@ -18,6 +18,23 @@ export default function Home() {
   const [activeScreen, setActiveScreen] = useState<Screen>('wins');
   const [refinementStatementId, setRefinementStatementId] = useState<string | null>(null);
 
+  // Handle hash-based routing
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '');
+      if (['wins', 'statements', 'library', 'account'].includes(hash)) {
+        setActiveScreen(hash as Screen);
+      }
+    };
+
+    // Set initial screen from hash
+    handleHashChange();
+    
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
   // Redirect to home if not authenticated
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {

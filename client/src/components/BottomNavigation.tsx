@@ -23,7 +23,10 @@ export default function BottomNavigation({ activeScreen, onScreenChange }: Botto
             className={`flex-1 py-4 flex flex-col items-center space-y-1 ${
               activeScreen === id ? 'text-primary' : 'text-muted-foreground'
             }`}
-            onClick={() => onScreenChange(id as any)}
+            onClick={() => {
+              window.location.hash = id;
+              onScreenChange(id as any);
+            }}
           >
             <Icon className="h-5 w-5" />
             <span className="text-xs font-medium">{label}</span>
