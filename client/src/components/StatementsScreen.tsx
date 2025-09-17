@@ -227,9 +227,14 @@ export default function StatementsScreen({ onStartRefinement }: StatementsScreen
                           className="mt-1"
                         />
                         <div className="flex-1 space-y-2">
-                          <p className="text-sm text-foreground leading-relaxed">
-                            {win.action.length > 80 ? `${win.action.substring(0, 80)}...` : win.action}
-                          </p>
+                          <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground font-medium">ACTION</p>
+                            <p className="text-sm text-foreground leading-relaxed">{win.action}</p>
+                            <p className="text-xs text-muted-foreground font-medium">IMPACT</p>
+                            <p className="text-sm text-foreground leading-relaxed">{win.impact}</p>
+                            <p className="text-xs text-muted-foreground font-medium">RESULT</p>
+                            <p className="text-sm text-foreground leading-relaxed">{win.result}</p>
+                          </div>
                           <div className="flex items-center space-x-2">
                             <Icon className={`w-4 h-4 ${config.color}`} />
                             <Badge className={`text-xs ${config.badgeColor}`}>
