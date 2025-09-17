@@ -91,36 +91,27 @@ Statement to analyze: "${statement}"`;
 }
 
 export async function generateAskBackQuestions(statement: string): Promise<any> {
-  const prompt = `Generate 3 highly specific, actionable ask-back questions to dramatically improve this Air Force performance statement. Each question should target missing critical details that would make the statement significantly more impressive to promotion boards.
+  const prompt = `Generate 3 targeted ask-back questions to improve this Air Force performance statement. Focus on gathering missing quantitative data, leadership details, and strategic impact. Respond with JSON in this format:
 
-Focus on:
-- SPECIFIC numbers, percentages, dollar amounts, timeframes
-- LEADERSHIP scope: how many people led/supervised/mentored
-- STRATEGIC impact: mission-critical outcomes, broader organizational effects
-- COMPETITIVE advantage: what made this achievement exceptional
-
-Create questions that would elicit responses like "saved $2.3M annually" or "led cross-functional team of 45 personnel" rather than generic descriptions.
-
-Respond with JSON in this format:
 {
   "questions": [
     {
-      "question": "What specific measurable impact did this have on [relevant metric]?",
-      "example": "Reduced processing time by 35%, saving 120 manhours weekly",
-      "category": "quantitative"
+      "question": "Question text?",
+      "example": "Example answer",
+      "category": "quantitative|leadership|strategic"
     }
   ]
 }
 
-Statement to improve: "${statement}"`;
+Statement: "${statement}"`;
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content: "You are a senior Air Force performance evaluation expert who has reviewed thousands of promotion packages. You know exactly what quantitative details, leadership scope, and strategic impacts make statements stand out to promotion boards. Generate laser-focused questions that will uncover the most impressive missing details."
+          content: "You are an expert at gathering missing details for Air Force performance statements. Generate specific questions that will help improve quantitative data, leadership actions, and strategic impact."
         },
         {
           role: "user",
@@ -128,7 +119,6 @@ Statement to improve: "${statement}"`;
         }
       ],
       response_format: { type: "json_object" },
-      temperature: 0.7,
     });
 
     return JSON.parse(response.choices[0].message.content || "{}");
