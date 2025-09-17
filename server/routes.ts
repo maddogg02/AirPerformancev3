@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { insertWinSchema, insertStatementSchema, performanceCategories } from "@shared/schema";
+import { insertWinSchema, insertStatementSchema, updateUserProfileSchema, performanceCategories } from "@shared/schema";
 import { generateFirstDraft, generateAIFeedback, generateAskBackQuestions, generateSynonymSuggestions, regenerateStatement } from "./openai";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -18,6 +18,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // Profile routes
+  app.get('/api/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const profile = await storage.getUserProfile(userId);
+      
+      if (!profile) {
+        return res.status(404).json({ message: "Profile not found" });
+      }
+      
+      res.json(profile);
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      res.status(500).json({ message: "Failed to fetch profile" });
+    }
+  });
+
+  app.put('/api/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Validate request body using zod schema
+      const validatedData = updateUserProfileSchema.parse(req.body);
+      
+      const updatedProfile = await storage.updateUserProfile(userId, validatedData);
+      res.json(updatedProfile);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      if (error instanceof Error && error.message === 'User not found') {
+        return res.status(404).json({ message: "Profile not found" });
+      }
+      res.status(400).json({ message: "Failed to update profile" });
     }
   });
 

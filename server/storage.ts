@@ -11,7 +11,10 @@ import {
   type InsertStatement,
   type RefinementSession,
   type InsertRefinementSession,
+  type UpdateUserProfile,
+  updateUserProfileSchema,
 } from "@shared/schema";
+import type { UserProfile } from "@shared/types";
 import { db } from "./db";
 import { eq, desc, and, inArray } from "drizzle-orm";
 
@@ -19,6 +22,10 @@ export interface IStorage {
   // User operations (mandatory for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
+  
+  // Profile operations
+  getUserProfile(id: string): Promise<UserProfile | undefined>;
+  updateUserProfile(id: string, profile: UpdateUserProfile): Promise<UserProfile>;
   
   // Win operations
   createWin(win: InsertWin): Promise<Win>;
@@ -60,6 +67,90 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return user;
+  }
+
+  // Profile operations
+  async getUserProfile(id: string): Promise<UserProfile | undefined> {
+    const user = await this.getUser(id);
+    if (!user) return undefined;
+    
+    // Transform User to UserProfile format
+    return {
+      id: user.id,
+      email: user.email || '',
+      username: user.username || '',
+      rank: user.rank as any,
+      afsc: user.afsc || '',
+      shred: user.shred || undefined,
+      skillLevel: user.skillLevel as any,
+      totalXP: user.totalXP || 0,
+      level: user.level || 1,
+      currentStreak: user.currentStreak || 0,
+      maxStreak: user.maxStreak || 0,
+      badges: user.badges || [],
+      weeklyGoal: user.weeklyGoal || 3,
+      yearlyGoals: (user.yearlyGoals as any) || {
+        missionExecution: 0,
+        leadingPeople: 0,
+        improvingUnit: 0,
+        managingResources: 0,
+      },
+      useRankDefaultDue: user.useRankDefaultDue ?? true,
+      customDueDate: user.customDueDate || undefined,
+      dailyReminderEnabled: user.dailyReminderEnabled ?? false,
+      dailyReminderTime: user.dailyReminderTime || '09:00',
+      dailyReminderDays: user.dailyReminderDays || ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+      createdAt: user.createdAt || undefined,
+      updatedAt: user.updatedAt || undefined,
+    };
+  }
+
+  async updateUserProfile(id: string, profileData: UpdateUserProfile): Promise<UserProfile> {
+    // Validate the profile data using zod schema
+    const validatedData = updateUserProfileSchema.parse(profileData);
+    
+    const [updatedUser] = await db
+      .update(users)
+      .set({
+        ...validatedData,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, id))
+      .returning();
+    
+    if (!updatedUser) {
+      throw new Error('User not found');
+    }
+    
+    // Transform updated user to UserProfile format
+    return {
+      id: updatedUser.id,
+      email: updatedUser.email || '',
+      username: updatedUser.username || '',
+      rank: updatedUser.rank as any,
+      afsc: updatedUser.afsc || '',
+      shred: updatedUser.shred || undefined,
+      skillLevel: updatedUser.skillLevel as any,
+      totalXP: updatedUser.totalXP || 0,
+      level: updatedUser.level || 1,
+      currentStreak: updatedUser.currentStreak || 0,
+      maxStreak: updatedUser.maxStreak || 0,
+      badges: updatedUser.badges || [],
+      weeklyGoal: updatedUser.weeklyGoal || 3,
+      yearlyGoals: (updatedUser.yearlyGoals as any) || {
+        missionExecution: 0,
+        leadingPeople: 0,
+        improvingUnit: 0,
+        managingResources: 0,
+      },
+      useRankDefaultDue: updatedUser.useRankDefaultDue ?? true,
+      customDueDate: updatedUser.customDueDate || undefined,
+      dailyReminderEnabled: updatedUser.dailyReminderEnabled ?? false,
+      dailyReminderTime: updatedUser.dailyReminderTime || '09:00',
+      dailyReminderDays: updatedUser.dailyReminderDays || ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+      createdAt: updatedUser.createdAt || undefined,
+      updatedAt: updatedUser.updatedAt || undefined,
+    };
   }
 
   // Win operations
