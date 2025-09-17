@@ -29,7 +29,7 @@ Generate individual polished performance statements:`;
   try {
     console.log("Generating first draft for wins:", wins.length, "mode:", mode);
     const response = await openai.chat.completions.create({
-      model: "gpt-5",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
@@ -69,8 +69,7 @@ Statement to analyze: "${statement}"`;
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-5",
-      temperature: 0.2,
+      model: "gpt-4o",
       messages: [
         {
           role: "system", 
@@ -94,8 +93,7 @@ Statement to analyze: "${statement}"`;
 export async function generateAskBackQuestions(statement: string): Promise<any> {
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-5",
-      temperature: 0.2,
+      model: "gpt-4o",
       max_completion_tokens: 500,
       messages: [
         {
@@ -172,7 +170,7 @@ Generate the improved statement:`;
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-5",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
@@ -184,7 +182,6 @@ Generate the improved statement:`;
         }
       ],
       max_completion_tokens: 200,
-      temperature: 0.2,
     });
 
     return response.choices[0].message.content || originalStatement;
@@ -211,7 +208,7 @@ Statement: "${statement}"`;
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-5",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
