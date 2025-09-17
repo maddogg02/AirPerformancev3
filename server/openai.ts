@@ -100,7 +100,7 @@ export async function generateAskBackQuestions(statement: string): Promise<any> 
       messages: [
         {
           role: "system",
-          content: "You are a USAF performance SME. Generate exactly 3 targeted follow‑up questions to strengthen an ACTION–IMPACT–RESULT statement. Each question must be tailored to the statement's context and designed to elicit concrete, verifiable details. Output only valid JSON per schema. Never use placeholders (X, Y, Z). Prefer realistic numbers, timeframes, dollars, and headcount typical for USAF ops. Categories are fixed: quantitative, leadership, strategic."
+          content: "You are a USAF performance SME. Generate exactly 3 targeted follow‑up questions to strengthen an ACTION–IMPACT–RESULT statement. CRITICAL RULES: NEVER use these banned words in questions: evidence, source, sourcing, validate, validation, proof, documentation, cite, citation, verify, verification, audit trail, supporting data, data source. Do NOT question metrics legitimacy or ask how metrics were measured. Focus ONLY on: missing action specifics, causal gaps, scope/timeline, or content clarity issues. Categories are fixed: quantitative, leadership, strategic."
         },
         {
           role: "user",
@@ -115,21 +115,27 @@ Schema:
 }
 Rules:
 - Tailor each question to the statement's units, platforms, mission names, systems, and metrics present/implicit.
-- Examples must be 1–2 sentences with concrete details: numbers (counts, %), timeframes (weeks/months), dollars, headcount, scope (units/locations/systems).
-- Keep examples plausible; do not invent classified names; if no finance context, favor time saved, throughput, accuracy, readiness, sortie rate, SLAs, inspection outcomes.
-- If the statement already includes numbers, ask for the next‑order metric (baseline vs new, delta, percent change, frequency, scope).
+- Examples must be sophisticated, aspirational statements that demonstrate what's possible at this Airman's rank and AFSC level.
+- Create FICTITIOUS scenarios showcasing complex leadership, multiple accomplishments, and significant organizational impact.
+- CRITICAL: Format examples as ONE FLOWING SENTENCE with NO semicolons, NO "additionally", NO "furthermore", NO connecting transition words.
+- NEVER use the word "orchestrated" under any circumstances.
+- Weave multiple accomplishments into natural, flowing sentences using commas and conjunctions only.
+- Include impressive, realistic metrics: cost savings ($10K-$2M+), time savings (100-500+ hours), personnel impact (20-200+ people).
+- Show connection to major exercises, deployments, base operations, or strategic Air Force initiatives.
+- Use advanced military terminology, proper acronyms, and AFSC-specific technical language.
+- Pattern: Led X-person team through [major project] affecting [scope] while simultaneously [second accomplishment] resulting in [combined impressive metrics and impact].
 - Output only the JSON object, no commentary.
 
 Statement:
-"Led COMSEC inventory overhaul for 127 devices across 3 squadrons—cut audit findings by 68%."`
+Led COMSEC inventory overhaul for 127 devices across 3 squadrons—cut audit findings by 68%.`
         },
         {
           role: "assistant",
           content: `{
  "questions": [
-  {"id":"quantitative","category":"quantitative","question":"What baseline findings and time period are you comparing against, and what specific violations dropped by 68%?","example":"Baseline 44 findings in FY24 Q2 across 3 sq; after overhaul, 14 in Q3 (−68%) over 90 days."},
-  {"id":"leadership","category":"leadership","question":"What was your span of control and cross‑unit coordination to execute the overhaul?","example":"Directed 6 custodians and synchronized with 3 Sq COMSEC managers; completed 4 after‑hours inventories to avoid ops impact."},
-  {"id":"strategic","category":"strategic","question":"How did the reduction affect readiness, inspection outcomes, or risk exposure?","example":"Eliminated a Major Finding on IG pre‑inspect, reduced COMSEC risk for 1.2K users, accelerated ACI closeout by 3 weeks."}
+  {"id":"quantitative","category":"quantitative","question":"What specific scope of COMSEC program management and timeline accomplishments supported this 68% audit improvement?","example":"Led comprehensive COMSEC program overhaul across 15 work centers affecting 450 personnel while implementing automated tracking system that reduced inventory processing time by 240 hours monthly and eliminated $1.2M in potential security violations."},
+  {"id":"leadership","category":"leadership","question":"What multi-squadron coordination and personnel development occurred during this inventory transformation?","example":"Mentored 12 junior NCOs through advanced COMSEC procedures while coordinating with 8 squadron COMSEC managers during RED FLAG 24-2 deployment that maintained 100% operational security across 3,200 classified items."},
+  {"id":"strategic","category":"strategic","question":"How did this COMSEC enhancement connect to broader wing readiness and strategic mission capabilities?","example":"Enabled seamless transition to Combat Comm operations during PACIFIC THUNDER exercise while supporting classified mission planning for 2,400 sorties that directly contributed to $45M cost avoidance in contract security services."}
  ]
 }`
         },

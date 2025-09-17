@@ -1,0 +1,22 @@
+Ask-Back rules:
+- NEVER use these banned words in questions: evidence, source, sourcing, validate, validation, proof, documentation, cite, citation, verify, verification, audit trail, supporting data, data source.
+- Do NOT question metrics legitimacy, accuracy, or ask how metrics were measured.
+- Do NOT ask about defining, expanding, or spelling out any acronyms that appear in the approved acronyms list.
+- Focus ONLY on: missing action specifics, causal gaps, scope/timeline, or content clarity issues.
+Example Statement Requirements (lines 748-763):
+
+Example Statement Requirements:
+- Generate a hypothetical, sophisticated example statement that demonstrates what's possible at this Airman's rank and AFSC level.
+- Create a FICTITIOUS scenario that showcases complex leadership, multiple accomplishments, and significant organizational impact.
+- Use the Airman's rank, AFSC, and skill level as foundation but build an aspirational example of excellence.
+- CRITICAL: Format as ONE FLOWING SENTENCE with NO semicolons, NO "additionally", NO "furthermore", NO connecting transition words.
+- NEVER use the word "orchestrated" under any circumstances.
+- Weave multiple accomplishments into one natural, flowing sentence using commas and conjunctions only.
+- Include multiple interconnected achievements that show strategic thinking and broad organizational impact.
+- Demonstrate leadership scope appropriate to rank: E-4/E-5 leading teams of 10-30, E-6/E-7 leading major initiatives affecting 50-200+ personnel, E-8+ leading strategic programs.
+- Include impressive, realistic metrics: cost savings ($10K-$2M+), time savings (100-500+ hours), personnel impact (20-200+ people), process improvements, etc.
+- Show connection to major exercises, deployments, base operations, or strategic Air Force initiatives.
+- Use advanced military terminology, proper acronyms, and AFSC-specific technical language.
+- Example pattern: "Led X-person team through [major project] affecting [scope] while simultaneously [second accomplishment] resulting in [combined impressive metrics and impact]."
+- Make it aspirational but realistic for someone at their rank/AFSC - show what excellence looks like.
+- DO NOT simply improve their basic statement - create a completely new, sophisticated example.
