@@ -255,6 +255,98 @@ Generate the improved statement:`;
   }
 }
 
+// Enhanced two-stage regeneration with AI feedback loop
+export async function enhancedRegenerateStatement(originalStatement: string, askBackAnswers: Record<string, string>): Promise<{
+  stage1Result: string;
+  aiFeedback: any;
+  finalResult: string;
+}> {
+  const answersText = Object.entries(askBackAnswers)
+    .filter(([_, answer]) => answer.trim())
+    .map(([questionId, answer]) => {
+      const questionLabels: Record<string, string> = {
+        quantitative: "Quantitative Impact",
+        leadership: "Leadership Examples", 
+        strategic: "Strategic Importance",
+        specifics: "Specific Details",
+        metrics: "Performance Metrics",
+        scope: "Scope & Scale"
+      };
+      const label = questionLabels[questionId] || questionId;
+      return `Q (${label}): ${answer}`;
+    })
+    .join('\n\n');
+
+  try {
+    console.log("Stage 1: Generating statement with user answers...");
+    
+    // STAGE 1: Generate with user answers (soft 400-450 char limit)
+    const stage1Prompt = `Improve this Air Force performance statement using the additional details provided. Maintain ACTION--IMPACT--RESULT structure, allow up to 450 characters, and incorporate ALL the new information to strengthen quantitative impact and leadership details.
+
+Original Statement: "${originalStatement}"
+
+Additional Details:
+${answersText}
+
+Generate the improved statement with ALL user-provided details incorporated:`;
+
+    const stage1Instructions = "You are an expert Air Force performance statement writer. Incorporate ALL user-provided details while maintaining professional military language and ACTION--IMPACT--RESULT structure. Preserve ALL facts, numbers, mission names, and scope exactly as provided by the user.";
+    
+    const stage1Result = await gpt5Text(stage1Prompt, { max: 512, instructions: stage1Instructions });
+    
+    console.log("Stage 2: Running AI feedback analysis...");
+    
+    // STAGE 2: Generate AI feedback on Stage 1 result
+    const feedbackPrompt = `Analyze this Air Force performance statement for style, clarity, and structure improvements. Focus ONLY on improving readability and professional presentation. DO NOT suggest changing any facts, numbers, mission names, or scope details provided by the user.
+
+Statement to analyze: "${stage1Result}"
+
+Provide feedback focusing on:
+- Clarity and readability improvements
+- Professional military language enhancements  
+- ACTION--IMPACT--RESULT structure optimization
+- Character count reduction techniques (target ≤350 chars)
+
+NEVER suggest changing user-provided facts, numbers, or specific details.`;
+
+    const aiFeedback = await generateAIFeedback(stage1Result);
+    
+    console.log("Stage 3: Polishing with AI feedback...");
+    
+    // STAGE 3: Polish using AI insights (strict 350 char limit)
+    const stage3Prompt = `Polish this Air Force performance statement using the AI feedback provided. Maintain ACTION--IMPACT--RESULT structure, enforce strict 350 character limit, and preserve ALL user-provided facts and numbers exactly.
+
+Current Statement: "${stage1Result}"
+
+AI Feedback for Improvement:
+${JSON.stringify(aiFeedback.improvements, null, 2)}
+
+CRITICAL RULES:
+- Preserve ALL facts, numbers, mission names, and scope exactly as written
+- Focus ONLY on style, clarity, and structure improvements
+- Enforce strict ≤350 character limit
+- Maintain professional military language
+
+Generate the final polished statement:`;
+
+    const stage3Instructions = "You are an expert Air Force performance statement writer specializing in final polish. Preserve ALL user facts while improving style and enforcing the 350-character limit. Never change specific details, numbers, or mission information.";
+    
+    const finalResult = await gpt5Text(stage3Prompt, { max: 512, instructions: stage3Instructions });
+    
+    console.log("Enhanced regeneration completed successfully");
+    
+    return {
+      stage1Result,
+      aiFeedback,
+      finalResult: finalResult || stage1Result
+    };
+    
+  } catch (error) {
+    console.error("Error in enhanced regeneration:", error);
+    throw new Error(`Failed to enhance statement: ${(error as Error).message}`);
+  }
+}
+
 // Test function to verify GPT-5 connectivity
 export async function testGPT5Connection(): Promise<string> {
   try {
