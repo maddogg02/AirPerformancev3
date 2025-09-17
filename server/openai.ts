@@ -97,13 +97,13 @@ Generate individual polished performance statements:`;
     console.log("Generating first draft for wins:", wins.length, "mode:", mode);
     const instructions = "You are an expert Air Force performance statement writer. You specialize in transforming raw performance data into professional military narrative statements that follow Air University standards. Always maintain ACTION--IMPACT--RESULT structure and stay under 350 characters.";
     
-    const content = await gpt5Text(prompt, { max: 500, instructions });
+    const content = await gpt5Text(prompt, { max: 512, instructions });
     console.log("Generated content:", content);
     return content;
   } catch (error) {
     console.error("Error generating first draft:", error);
     console.error("Full error details:", JSON.stringify(error, null, 2));
-    throw new Error("Failed to generate statement");
+    throw new Error(`Failed to generate statement: ${(error as Error).message}`);
   }
 }
 
@@ -142,7 +142,7 @@ Statement to analyze: "${statement}"`;
     return JSON.parse(content);
   } catch (error) {
     console.error("Error generating AI feedback:", error);
-    throw new Error("Failed to generate feedback");
+    throw new Error(`Failed to generate feedback: ${(error as Error).message}`);
   }
 }
 
@@ -215,14 +215,26 @@ NOW, using the same schema and rules, generate questions for this statement:
     return JSON.parse(content);
   } catch (error) {
     console.error("Error generating ask-back questions:", error);
-    throw new Error("Failed to generate ask-back questions");
+    throw new Error(`Failed to generate ask-back questions: ${(error as Error).message}`);
   }
 }
 
 export async function regenerateStatement(originalStatement: string, askBackAnswers: Record<string, string>): Promise<string> {
   const answersText = Object.entries(askBackAnswers)
     .filter(([_, answer]) => answer.trim())
-    .map(([question, answer]) => `Q: ${question}\nA: ${answer}`)
+    .map(([questionId, answer]) => {
+      // Convert question IDs to more descriptive labels
+      const questionLabels: Record<string, string> = {
+        quantitative: "Quantitative Impact",
+        leadership: "Leadership Examples", 
+        strategic: "Strategic Importance",
+        specifics: "Specific Details",
+        metrics: "Performance Metrics",
+        scope: "Scope & Scale"
+      };
+      const label = questionLabels[questionId] || questionId;
+      return `Q (${label}): ${answer}`;
+    })
     .join('\n\n');
 
   const prompt = `Improve this Air Force performance statement using the additional details provided. Maintain ACTION--IMPACT--RESULT structure, stay under 350 characters, and incorporate the new information to strengthen quantitative impact and leadership details.
@@ -237,11 +249,11 @@ Generate the improved statement:`;
   try {
     const instructions = "You are an expert Air Force performance statement writer. Improve statements by incorporating additional details while maintaining professional military language and ACTION--IMPACT--RESULT structure.";
     
-    const content = await gpt5Text(prompt, { max: 200, instructions });
+    const content = await gpt5Text(prompt, { max: 512, instructions });
     return content || originalStatement;
   } catch (error) {
     console.error("Error regenerating statement:", error);
-    throw new Error("Failed to regenerate statement");
+    throw new Error(`Failed to regenerate statement: ${(error as Error).message}`);
   }
 }
 
