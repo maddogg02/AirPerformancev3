@@ -28,11 +28,9 @@ async function gpt5Text(userPrompt: string, opts?: { max?: number; temperature?:
       verbosity: "medium",
       format: {
         type: "json_schema",
-        json_schema: {
-          name: opts.jsonName || "Result",
-          schema: opts.jsonSchema,
-          strict: true
-        }
+        name: opts.jsonName || "Result",
+        schema: opts.jsonSchema,
+        strict: true
       }
     };
   } else {
