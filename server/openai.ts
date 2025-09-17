@@ -138,7 +138,7 @@ Statement to analyze: "${statement}"`;
       additionalProperties: false
     };
     
-    const content = await gpt5Text(prompt, { max: 500, temperature: 0.2, jsonSchema: feedbackSchema, jsonName: "Feedback", instructions });
+    const content = await gpt5Text(prompt, { max: 512, jsonSchema: feedbackSchema, jsonName: "Feedback", instructions });
     return JSON.parse(content);
   } catch (error) {
     console.error("Error generating AI feedback:", error);
@@ -211,7 +211,7 @@ NOW, using the same schema and rules, generate questions for this statement:
       additionalProperties: false
     };
     
-    const content = await gpt5Text(prompt, { max: 500, temperature: 0.2, jsonSchema: questionsSchema, jsonName: "AskBackQuestions", instructions });
+    const content = await gpt5Text(prompt, { max: 512, jsonSchema: questionsSchema, jsonName: "AskBackQuestions", instructions });
     return JSON.parse(content);
   } catch (error) {
     console.error("Error generating ask-back questions:", error);
