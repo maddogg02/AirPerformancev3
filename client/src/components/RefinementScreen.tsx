@@ -30,6 +30,8 @@ export default function RefinementScreen({ statementId, onComplete }: Refinement
   const [aiFeedbackCollapsed, setAiFeedbackCollapsed] = useState(false);
   const [helpSectionCollapsed, setHelpSectionCollapsed] = useState(false);
   const [isGeneratingFirstDraft, setIsGeneratingFirstDraft] = useState(false);
+  const [intermediateSteps, setIntermediateSteps] = useState<any>(null);
+  const [showSteps, setShowSteps] = useState(false);
   const attemptedFirstDraftRef = useRef(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -234,7 +236,7 @@ export default function RefinementScreen({ statementId, onComplete }: Refinement
     },
   });
 
-  // Regenerate statement
+  // Enhanced regenerate statement with two-stage AI refinement
   const regenerateStatementMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest("POST", `/api/refinement/${statementId}/regenerate`, {
@@ -244,10 +246,11 @@ export default function RefinementScreen({ statementId, onComplete }: Refinement
     },
     onSuccess: (result) => {
       setImprovedStatementContent(result.content);
-      setCurrentStep(3); // Move to Before/After comparison
+      setIntermediateSteps(result.intermediateSteps);
+      setCurrentStep(3); // Move to enhanced result display
       toast({
         title: "Statement dramatically improved!",
-        description: "See the amazing transformation below!",
+        description: "Enhanced with two-stage AI refinement process!",
       });
     },
     onError: (error) => {
@@ -455,50 +458,97 @@ export default function RefinementScreen({ statementId, onComplete }: Refinement
         </Collapsible>
       )}
 
-      {/* Step 3: Before/After Comparison - The WOW Moment! */}
+      {/* Step 3: Enhanced Result Display */}
       {currentStep >= 3 && improvedStatementContent && (
         <Card className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-950 dark:to-blue-950 border-green-200 dark:border-green-800">
           <CardContent className="p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Trophy className="h-5 w-5 text-green-600" />
-              <h3 className="font-semibold text-foreground">Amazing Improvement!</h3>
-              <Badge variant="secondary" className="bg-green-100 text-green-800">Before → After</Badge>
-            </div>
-            
-            {/* Desktop: Side by side, Mobile: Stacked */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* BEFORE */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs">BEFORE</Badge>
-                  <span className="text-xs text-muted-foreground">Original Draft</span>
-                </div>
-                <div className="p-3 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg">
-                  <p className="text-sm text-foreground leading-relaxed">
-                    {renderDiffHighlights(originalStatementContent, improvedStatementContent, 'original')}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-2">{originalStatementContent.length}/350 characters</p>
-                </div>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-green-600" />
+                <h3 className="font-semibold text-foreground">Enhanced Statement</h3>
+                <Badge variant="secondary" className="bg-green-100 text-green-800">AI Refined</Badge>
               </div>
               
-              {/* AFTER */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge className="text-xs bg-green-600">AFTER</Badge>
-                  <span className="text-xs text-green-600 font-medium">Dramatically Improved!</span>
-                </div>
-                <div className="p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
-                  <p className="text-sm text-foreground leading-relaxed font-medium">
-                    {renderDiffHighlights(originalStatementContent, improvedStatementContent, 'improved')}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-2">{improvedStatementContent.length}/350 characters</p>
-                </div>
+              {/* View Steps Toggle */}
+              {intermediateSteps && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setShowSteps(!showSteps)}
+                  data-testid="button-view-steps"
+                >
+                  {showSteps ? (
+                    <>
+                      <ChevronUp className="h-4 w-4 mr-2" />
+                      Hide Steps
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="h-4 w-4 mr-2" />
+                      View Steps
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+            
+            {/* Final Result - Always Visible */}
+            <div className="space-y-2 mb-4">
+              <div className="flex items-center gap-2">
+                <Badge className="text-xs bg-green-600">FINAL RESULT</Badge>
+                <span className="text-xs text-green-600 font-medium">Dramatically Improved!</span>
+              </div>
+              <div className="p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
+                <p className="text-sm text-foreground leading-relaxed font-medium" data-testid="text-final-statement">
+                  {improvedStatementContent}
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">{improvedStatementContent.length}/350 characters</p>
               </div>
             </div>
+            
+            {/* Intermediate Steps - Collapsible */}
+            {intermediateSteps && showSteps && (
+              <Collapsible open={showSteps}>
+                <CollapsibleContent className="space-y-4">
+                  <div className="border-t pt-4">
+                    <h4 className="font-medium text-sm text-muted-foreground mb-3">Refinement Process</h4>
+                    
+                    {/* Stage 1: User Input Integration */}
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs">STAGE 1</Badge>
+                        <span className="text-xs text-muted-foreground">User Input Integration</span>
+                      </div>
+                      <div className="p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+                        <p className="text-sm text-foreground leading-relaxed" data-testid="text-stage1-result">
+                          {intermediateSteps.stage1Result}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-2">{intermediateSteps.stage1Result?.length || 0} characters</p>
+                      </div>
+                    </div>
+                    
+                    {/* Stage 2: AI Feedback */}
+                    {intermediateSteps.aiFeedback && (
+                      <div className="space-y-2 mb-4">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs">STAGE 2</Badge>
+                          <span className="text-xs text-muted-foreground">AI Analysis & Feedback</span>
+                        </div>
+                        <div className="p-3 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                          <p className="text-sm text-foreground leading-relaxed" data-testid="text-ai-feedback">
+                            AI provided style and clarity improvements while preserving all your facts and details.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            )}
             
             <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
               <p className="text-sm text-blue-800 dark:text-blue-200 font-medium text-center">
-                ✨ This is what answering those questions accomplished! Much more professional and impactful.
+                ✨ Enhanced with two-stage AI refinement - your input guided the improvement, then AI polished it to perfection!
               </p>
             </div>
           </CardContent>
