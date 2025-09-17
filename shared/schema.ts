@@ -31,6 +31,34 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
+  
+  // Extended profile fields
+  username: varchar("username"),
+  rank: varchar("rank"), // E-1 through E-9
+  afsc: varchar("afsc"), // Air Force Specialty Code
+  shred: varchar("shred"), // AFSC shred (optional)
+  skillLevel: varchar("skill_level"), // 3, 5, 7, 9 level
+  
+  // Performance tracking
+  totalXP: integer("total_xp").default(0),
+  level: integer("level").default(1),
+  currentStreak: integer("current_streak").default(0),
+  maxStreak: integer("max_streak").default(0),
+  badges: text("badges").array().default([]),
+  
+  // Goals
+  weeklyGoal: integer("weekly_goal").default(3),
+  yearlyGoals: jsonb("yearly_goals"), // Store as JSON object
+  
+  // EPB/Due date settings
+  useRankDefaultDue: boolean("use_rank_default_due").default(true),
+  customDueDate: varchar("custom_due_date"), // ISO date string
+  
+  // Notification settings
+  dailyReminderEnabled: boolean("daily_reminder_enabled").default(false),
+  dailyReminderTime: varchar("daily_reminder_time").default("09:00"),
+  dailyReminderDays: text("daily_reminder_days").array().default(["monday", "tuesday", "wednesday", "thursday", "friday"]),
+  
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -135,9 +163,20 @@ export const insertRefinementSessionSchema = createInsertSchema(refinementSessio
   updatedAt: true,
 });
 
+// Extended insert and select schemas for users
+export const insertUserProfileSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const updateUserProfileSchema = insertUserProfileSchema.partial();
+
 // Types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
+export type InsertUserProfile = z.infer<typeof insertUserProfileSchema>;
+export type UpdateUserProfile = z.infer<typeof updateUserProfileSchema>;
 export type InsertWin = z.infer<typeof insertWinSchema>;
 export type Win = typeof wins.$inferSelect;
 export type InsertStatement = z.infer<typeof insertStatementSchema>;
@@ -145,3 +184,15 @@ export type Statement = typeof statements.$inferSelect;
 export type InsertRefinementSession = z.infer<typeof insertRefinementSessionSchema>;
 export type RefinementSession = typeof refinementSessions.$inferSelect;
 export type PerformanceCategory = typeof performanceCategories[number];
+
+// Re-export types from shared/types.ts for convenience
+export type { 
+  UserProfile, 
+  Rank, 
+  DashboardStats, 
+  CategoryStat, 
+  WeeklyTrend,
+  AFSC,
+  DueDateStatus,
+  Theme
+} from "./types";
