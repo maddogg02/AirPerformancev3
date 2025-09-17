@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import type { Win } from "@shared/schema";
 
-// the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+// the newest OpenAI model is "gpt-4o" which was released August 7, 2025. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ 
   apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_KEY || "sk-placeholder"
 });
@@ -27,8 +27,9 @@ ${winsText}
 Generate individual polished performance statements:`;
 
   try {
+    console.log("Generating first draft for wins:", wins.length, "mode:", mode);
     const response = await openai.chat.completions.create({
-      model: "gpt-5",
+      model: "gpt-4o",  // Use available model instead of gpt-4o
       messages: [
         {
           role: "system",
@@ -39,12 +40,15 @@ Generate individual polished performance statements:`;
           content: prompt
         }
       ],
-      max_completion_tokens: 500,
+      max_tokens: 500,
     });
 
-    return response.choices[0].message.content || "";
+    const content = response.choices[0].message.content || "";
+    console.log("Generated content:", content);
+    return content;
   } catch (error) {
     console.error("Error generating first draft:", error);
+    console.error("Full error details:", JSON.stringify(error, null, 2));
     throw new Error("Failed to generate statement");
   }
 }
@@ -65,7 +69,7 @@ Statement to analyze: "${statement}"`;
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-5",
+      model: "gpt-4o",
       messages: [
         {
           role: "system", 
@@ -103,7 +107,7 @@ Statement: "${statement}"`;
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-5",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
@@ -141,7 +145,7 @@ Generate the improved statement:`;
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-5",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
@@ -179,7 +183,7 @@ Statement: "${statement}"`;
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-5",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
