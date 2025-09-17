@@ -1,0 +1,526 @@
+import { useState, useEffect } from "react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ProButton } from "@/components/ui/pro-button";
+import { useAuth } from "@/hooks/useAuth";
+import { Settings, Calendar, User, Bell, Clock, Sun, Moon, Monitor, Target } from "lucide-react";
+import { cn } from "@/lib/utils";
+import type { Rank, UserProfile } from "@/types";
+import { format } from "date-fns";
+import { useTheme } from "next-themes";
+import { useAfscs } from "@/hooks/useAfscs";
+
+interface SettingsScreenProps {
+  profile: UserProfile | null;
+  onProfileUpdate: (profile: Partial<UserProfile>) => void;
+}
+
+export const SettingsScreen = ({ profile, onProfileUpdate }: SettingsScreenProps) => {
+  const [localProfile, setLocalProfile] = useState<Partial<UserProfile>>(profile || {});
+  const [dueDate, setDueDate] = useState("");
+  const [afscPrefix, setAfscPrefix] = useState("");
+  const { theme, setTheme } = useTheme();
+  const { getFilteredAfscs, loading: afscLoading } = useAfscs();
+  const { signOut, user } = useAuth();
+
+  const ranks: Rank[] = ['E-1', 'E-2', 'E-3', 'E-4', 'E-5', 'E-6', 'E-7', 'E-8', 'E-9'];
+  
+  // AFSC prefix options
+  const afscPrefixes = [
+    { value: "1XXXX", label: "1XXXX - Operations" },
+    { value: "2XXXX", label: "2XXXX - Logistics" },
+    { value: "3XXXX", label: "3XXXX - Support" },
+    { value: "4XXXX", label: "4XXXX - Medical" },
+    { value: "5XXXX", label: "5XXXX - Professional" },
+    { value: "6XXXX", label: "6XXXX - Contracting and Financial" },
+    { value: "7XXXX", label: "7XXXX - Special Investigations" },
+    { value: "8XXXX", label: "8XXXX - Special Duty Identifiers (SDI)" },
+    { value: "9XXXX", label: "9XXXX" }
+  ];
+  
+  const daysOfWeek = [
+    { value: 'monday', label: 'Monday' },
+    { value: 'tuesday', label: 'Tuesday' },
+    { value: 'wednesday', label: 'Wednesday' },
+    { value: 'thursday', label: 'Thursday' },
+    { value: 'friday', label: 'Friday' },
+    { value: 'saturday', label: 'Saturday' },
+    { value: 'sunday', label: 'Sunday' }
+  ];
+
+  useEffect(() => {
+    if (profile) {
+      setLocalProfile(profile);
+      if (profile.customDueDate) {
+        setDueDate(profile.customDueDate);
+      }
+      // Set AFSC prefix based on current AFSC
+      if (profile.afsc) {
+        const firstChar = profile.afsc.charAt(0);
+        const matchingPrefix = afscPrefixes.find(p => p.value.startsWith(firstChar));
+        if (matchingPrefix) {
+          setAfscPrefix(matchingPrefix.value);
+        }
+      }
+    }
+  }, [profile]);
+
+  const handleProfileUpdate = (updates: Partial<UserProfile>) => {
+    const newProfile = { ...localProfile, ...updates };
+    setLocalProfile(newProfile);
+    onProfileUpdate(updates);
+  };
+
+  const handleReminderDayToggle = (day: string, checked: boolean) => {
+    const currentDays = localProfile.dailyReminderDays || [];
+    const newDays = checked 
+      ? [...currentDays, day]
+      : currentDays.filter(d => d !== day);
+    handleProfileUpdate({ dailyReminderDays: newDays });
+  };
+
+  const handleDueDateChange = (date: string) => {
+    setDueDate(date);
+    handleProfileUpdate({ customDueDate: date });
+  };
+
+  const getCurrentDueDate = () => {
+    if (!profile?.useRankDefaultDue && profile?.customDueDate) {
+      return format(new Date(profile.customDueDate), 'MMM dd, yyyy');
+    }
+    // Would normally calculate from rank defaults, simplified for demo
+    return "Mar 31, 2025";
+  };
+
+  return (
+    <div className="min-h-screen bg-background pb-20 px-4 pt-6">
+      <div className="max-w-md mx-auto space-y-6">
+        {/* Header */}
+        <div className="relative text-center">
+          <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
+            <Settings className="w-8 h-8 text-primary-foreground" />
+          </div>
+          <h1 className="text-2xl font-bold text-foreground">Settings</h1>
+          <p className="text-sm text-muted-foreground">Configure your preferences</p>
+          <div className="absolute right-0 top-0">
+            <ProButton />
+          </div>
+        </div>
+
+        {/* Profile Settings */}
+        <Card className="gradient-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <User className="w-5 h-5 text-primary" />
+              Profile
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input
+                type="email"
+                placeholder="your.email@mail.mil"
+                value={localProfile.email || ""}
+                onChange={(e) => handleProfileUpdate({ email: e.target.value })}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Username</Label>
+                <Input
+                  type="text"
+                  placeholder="Choose a username"
+                  value={localProfile.username || ""}
+                  onChange={(e) => handleProfileUpdate({ username: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Rank</Label>
+                <Select 
+                  value={localProfile.rank} 
+                  onValueChange={(value) => handleProfileUpdate({ rank: value as Rank })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background border border-border z-50">
+                    {ranks.map((rank) => (
+                      <SelectItem key={rank} value={rank}>{rank}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* AFSC Prefix */}
+            <div className="space-y-2">
+              <Label htmlFor="afsc-prefix">AFSC Prefix</Label>  
+              <Select value={afscPrefix} onValueChange={setAfscPrefix}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select AFSC category" />
+                </SelectTrigger>
+                <SelectContent className="bg-background border border-border z-50">
+                  {afscPrefixes.map((prefix) => (
+                    <SelectItem key={prefix.value} value={prefix.value}>
+                      {prefix.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="col-span-2 space-y-2">
+                <Label>AFSC</Label>
+                <Select 
+                  value={localProfile.afsc || ""} 
+                  onValueChange={(value) => handleProfileUpdate({ afsc: value })}
+                  disabled={afscLoading || !afscPrefix || getFilteredAfscs(afscPrefix).length === 0}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={
+                      afscLoading 
+                        ? "Loading AFSCs..." 
+                        : afscPrefix 
+                          ? `Select AFSC ${afscPrefix.charAt(0)}XXXX` 
+                          : "Select AFSC prefix first"
+                    } />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background border border-border z-50">
+                    {getFilteredAfscs(afscPrefix).map((afscOption) => (
+                      <SelectItem key={afscOption.code} value={afscOption.code}>
+                        {afscOption.code} - {afscOption.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {afscPrefix && getFilteredAfscs(afscPrefix).length === 0 && !afscLoading && (
+                  <p className="text-xs text-muted-foreground">
+                    No AFSCs found for prefix {afscPrefix.charAt(0)}XXXX
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Shred</Label>
+                <Input
+                  type="text"
+                  placeholder="A"
+                  maxLength={1}
+                  value={localProfile.shred || ""}
+                  onChange={(e) => handleProfileUpdate({ shred: e.target.value.toUpperCase() })}
+                />
+              </div>
+            </div>
+
+            {/* Skill Level */}
+            <div className="space-y-2">
+              <Label>Skill Level</Label>
+              <Select 
+                value={localProfile.skillLevel || ""} 
+                onValueChange={(value) => handleProfileUpdate({ skillLevel: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select skill level" />
+                </SelectTrigger>
+                <SelectContent className="bg-background border border-border z-50">
+                  <SelectItem value="3">3-Level</SelectItem>
+                  <SelectItem value="5">5-Level</SelectItem>
+                  <SelectItem value="7">7-Level</SelectItem>
+                  <SelectItem value="9">9-Level</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Deadlines Settings */}
+        <Card className="gradient-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Calendar className="w-5 h-5 text-primary" />
+              Deadlines
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Use rank defaults</Label>
+                <p className="text-sm text-muted-foreground">
+                  Automatically set due date based on your rank
+                </p>
+              </div>
+              <Switch
+                checked={localProfile.useRankDefaultDue ?? true}
+                onCheckedChange={(checked) => handleProfileUpdate({ useRankDefaultDue: checked })}
+              />
+            </div>
+
+            <Separator />
+
+            <div className="space-y-2">
+              <Label>Current Due Date</Label>
+              <div className="text-sm font-medium text-foreground">
+                {getCurrentDueDate()}
+              </div>
+            </div>
+
+            {!localProfile.useRankDefaultDue && (
+              <div className="space-y-2">
+                <Label>Custom Due Date</Label>
+                <Input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => handleDueDateChange(e.target.value)}
+                />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Theme Settings */}
+        <Card className="gradient-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Sun className="w-5 h-5 text-primary" />
+              Appearance
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <Label>Theme</Label>
+              <div className="grid grid-cols-3 gap-2">
+                <Button
+                  variant={theme === "light" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setTheme("light")}
+                  className="flex items-center gap-2 justify-start"
+                >
+                  <Sun className="w-4 h-4" />
+                  Light
+                </Button>
+                <Button
+                  variant={theme === "dark" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setTheme("dark")}
+                  className="flex items-center gap-2 justify-start"
+                >
+                  <Moon className="w-4 h-4" />
+                  Dark
+                </Button>
+                <Button
+                  variant={theme === "system" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setTheme("system")}
+                  className="flex items-center gap-2 justify-start"
+                >
+                  <Monitor className="w-4 h-4" />
+                  System
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Goals Settings */}
+        <Card className="gradient-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Target className="w-5 h-5 text-primary" />
+              Performance Goals
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Weekly Goal</Label>
+              <Input
+                type="number"
+                placeholder="3"
+                min="1"
+                max="10"
+                value={localProfile.weeklyGoal || 3}
+                onChange={(e) => handleProfileUpdate({ weeklyGoal: parseInt(e.target.value) || 3 })}
+              />
+              <p className="text-xs text-muted-foreground">Performance entries per week</p>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-3">
+              <Label>Yearly Goals by Performance Area</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label className="text-sm font-normal">Mission Execution</Label>
+                  <Input
+                    type="number"
+                    placeholder="15"
+                    min="1"
+                    max="50"
+                    value={localProfile.yearlyGoals?.missionExecution || 15}
+                    onChange={(e) => handleProfileUpdate({ 
+                      yearlyGoals: { 
+                        ...localProfile.yearlyGoals,
+                        missionExecution: parseInt(e.target.value) || 15 
+                      } 
+                    })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-normal">Leading People</Label>
+                  <Input
+                    type="number"
+                    placeholder="10"
+                    min="1"
+                    max="50"
+                    value={localProfile.yearlyGoals?.leadingPeople || 10}
+                    onChange={(e) => handleProfileUpdate({ 
+                      yearlyGoals: { 
+                        ...localProfile.yearlyGoals,
+                        leadingPeople: parseInt(e.target.value) || 10 
+                      } 
+                    })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-normal">Improving Unit</Label>
+                  <Input
+                    type="number"
+                    placeholder="8"
+                    min="1"
+                    max="50"
+                    value={localProfile.yearlyGoals?.improvingUnit || 8}
+                    onChange={(e) => handleProfileUpdate({ 
+                      yearlyGoals: { 
+                        ...localProfile.yearlyGoals,
+                        improvingUnit: parseInt(e.target.value) || 8 
+                      } 
+                    })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-normal">Managing Resources</Label>
+                  <Input
+                    type="number"
+                    placeholder="7"
+                    min="1"
+                    max="50"
+                    value={localProfile.yearlyGoals?.managingResources || 7}
+                    onChange={(e) => handleProfileUpdate({ 
+                      yearlyGoals: { 
+                        ...localProfile.yearlyGoals,
+                        managingResources: parseInt(e.target.value) || 7 
+                      } 
+                    })}
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">Set targets for each performance area</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Notifications */}
+        <Card className="gradient-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Bell className="w-5 h-5 text-primary" />
+              Daily Reminders
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Enable Daily Reminders */}
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Enable daily reminders</Label>
+                <p className="text-sm text-muted-foreground">
+                  Get reminded to log performance bullets
+                </p>
+              </div>
+              <Switch
+                checked={localProfile.dailyReminderEnabled ?? false}
+                onCheckedChange={(checked) => handleProfileUpdate({ dailyReminderEnabled: checked })}
+              />
+            </div>
+
+            {localProfile.dailyReminderEnabled && (
+              <>
+                <Separator />
+                
+                {/* Reminder Time */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    Reminder Time
+                  </Label>
+                  <Input
+                    type="time"
+                    value={localProfile.dailyReminderTime || "09:00"}
+                    onChange={(e) => handleProfileUpdate({ dailyReminderTime: e.target.value })}
+                  />
+                </div>
+
+                <Separator />
+
+                {/* Days Selection */}
+                <div className="space-y-3">
+                  <Label>Reminder Days</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {daysOfWeek.map((day) => (
+                      <div key={day.value} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={day.value}
+                          checked={(localProfile.dailyReminderDays || []).includes(day.value)}
+                          onCheckedChange={(checked) => handleReminderDayToggle(day.value, checked as boolean)}
+                        />
+                        <Label htmlFor={day.value} className="text-sm font-normal">
+                          {day.label}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Account Actions */}
+        <Card className="gradient-card border-destructive/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg text-destructive">
+              <User className="w-5 h-5" />
+              Account
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {user && (
+              <div className="space-y-2">
+                <Label>Signed in as</Label>
+                <div className="text-sm font-medium text-foreground">
+                  {user.email}
+                </div>
+              </div>
+            )}
+            
+            <Separator />
+            
+            <Button 
+              variant="destructive" 
+              onClick={signOut} 
+              className="w-full"
+            >
+              Sign Out
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};

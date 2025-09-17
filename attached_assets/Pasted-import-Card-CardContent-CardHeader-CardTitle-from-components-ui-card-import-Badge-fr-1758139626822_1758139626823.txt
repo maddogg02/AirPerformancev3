@@ -1,0 +1,266 @@
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Target, TrendingUp, Calendar, Zap, Trophy, Clock, BookOpen, Plus, Crown } from "lucide-react";
+import { Link } from "react-router-dom";
+import { cn } from "@/lib/utils";
+import type { DashboardStats, PerformanceCategory, UserProfile } from "@/types";
+import { getDaysUntilDue, getDueDateStatus, calculateDueDate, getDueDateProgress } from "@/lib/profile";
+import { getRankName } from "@/lib/ranks";
+import { format } from "date-fns";
+
+// Mock data - in real app this would come from state/API
+const mockStats: DashboardStats = {
+  totalWins: 47,
+  thisWeek: 3,
+  thisMonth: 12,
+  currentStreak: 5,
+  categoryStats: [
+    { category: 'Mission Execution', count: 15, percentage: 32 },
+    { category: 'Leading People', count: 10, percentage: 21 },
+    { category: 'Improving the Unit', count: 8, percentage: 17 },
+    { category: 'Managing Resources', count: 7, percentage: 15 },
+  ],
+  weeklyTrend: [
+    { week: 'W1', count: 2 },
+    { week: 'W2', count: 4 },
+    { week: 'W3', count: 3 },
+    { week: 'W4', count: 5 },
+    { week: 'W5', count: 1 },
+    { week: 'W6', count: 3 },
+  ],
+  dutyCoverage: 68,
+};
+
+// Weekly goal will come from profile
+
+interface DashboardScreenProps {
+  onAddWin: () => void;
+  onOpenLibrary: (filter?: string) => void;
+  onOpenDeadlines?: () => void;
+  profile?: UserProfile | null;
+}
+
+export const DashboardScreen = ({ onAddWin, onOpenLibrary, onOpenDeadlines, profile }: DashboardScreenProps) => {
+  const weeklyGoal = profile?.weeklyGoal || 3;
+  const weeklyProgress = (mockStats.thisWeek / weeklyGoal) * 100;
+  const daysUntilDue = profile ? getDaysUntilDue(profile) : null;
+  const dueDateProgress = profile ? getDueDateProgress(profile) : 0;
+  const dueDateStatus = daysUntilDue !== null ? getDueDateStatus(daysUntilDue) : 'neutral';
+  const dueDate = profile ? calculateDueDate(profile) : null;
+
+  return (
+    <div className="min-h-screen bg-background pb-20 px-4 pt-6">
+      <div className="max-w-md mx-auto space-y-6">
+        {/* Header with Upgrade Button */}
+        <div className="relative text-center">
+          <h1 className="text-xl font-bold text-foreground">Performance Dashboard</h1>
+          <div className="absolute right-0 top-0">
+            <Link to="/upgrade">
+              <Button 
+                variant="default" 
+                size="sm" 
+                className="bg-primary hover:bg-primary-hover text-primary-foreground font-semibold shadow-sm"
+              >
+                <Crown className="w-4 h-4 mr-1" />
+                Pro
+              </Button>
+            </Link>
+          </div>
+        </div>
+
+        {/* EPB Due Date */}
+        <Card 
+          className={cn(
+            "gradient-card cursor-pointer transition-all",
+            dueDateStatus === 'urgent' && "border-destructive",
+            dueDateStatus === 'caution' && "border-warning"
+          )}
+          onClick={onOpenDeadlines}
+        >
+          <CardContent className="pt-6">
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <div className={cn(
+                  "w-8 h-8 rounded-lg flex items-center justify-center",
+                  dueDateStatus === 'urgent' && "bg-destructive/10",
+                  dueDateStatus === 'caution' && "bg-warning/10",
+                  dueDateStatus === 'neutral' && "bg-primary/10"
+                )}>
+                  <Clock className={cn(
+                    "w-4 h-4",
+                    dueDateStatus === 'urgent' && "text-destructive",
+                    dueDateStatus === 'caution' && "text-warning",
+                    dueDateStatus === 'neutral' && "text-primary"
+                  )} />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-muted-foreground">
+                    {profile?.rank ? `${getRankName(profile.rank)} EPB Due Date` : 'EPB Due Date'}
+                  </p>
+                  <div className="flex items-baseline gap-2">
+                    <p className={cn(
+                      "text-2xl font-bold",
+                      dueDateStatus === 'urgent' && "text-destructive",
+                      dueDateStatus === 'caution' && "text-warning",
+                      dueDateStatus === 'neutral' && "text-foreground"
+                    )}>
+                      {dueDateProgress}%
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {daysUntilDue} days left
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-1">
+                <Progress 
+                  value={dueDateProgress} 
+                  className={cn(
+                    "h-3",
+                    dueDateStatus === 'urgent' && "[&>div]:bg-destructive",
+                    dueDateStatus === 'caution' && "[&>div]:bg-warning"
+                  )}
+                />
+                {dueDate && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    Due {format(dueDate, 'MMM dd, yyyy')}
+                  </p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Current Streak */}
+        <Card className="gradient-card">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                <Zap className="w-4 h-4 text-primary" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-muted-foreground">Current Streak</p>
+                <p className="text-2xl font-bold text-foreground">{mockStats.currentStreak} weeks</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Key Stats Grid */}
+        <div className="grid grid-cols-3 gap-4">
+          <Card className="gradient-card cursor-pointer" onClick={() => onOpenLibrary()}>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                  <Trophy className="w-4 h-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Total Wins</p>
+                  <p className="text-2xl font-bold text-foreground">{mockStats.totalWins}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="gradient-card cursor-pointer" onClick={() => onOpenLibrary('thisweek')}>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-success/10 rounded-lg flex items-center justify-center">
+                  <Calendar className="w-4 h-4 text-success" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">This Week</p>
+                  <p className="text-2xl font-bold text-foreground">{mockStats.thisWeek}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="gradient-card cursor-pointer" onClick={() => onOpenLibrary('thismonth')}>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-warning/10 rounded-lg flex items-center justify-center">
+                  <TrendingUp className="w-4 h-4 text-warning" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">This Month</p>
+                  <p className="text-2xl font-bold text-foreground">{mockStats.thisMonth}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Weekly Goal Progress */}
+        <Card className="gradient-card">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Weekly Goal</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">
+                  {mockStats.thisWeek} of {weeklyGoal} wins this week
+                </span>
+                <span className="font-medium">{Math.round(weeklyProgress)}%</span>
+              </div>
+              <Progress value={weeklyProgress} className="h-2" />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Category Rings */}
+        <Card className="gradient-card">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              Performance Areas
+              <Badge variant="secondary" className="text-xs">Yearly</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {mockStats.categoryStats.map((stat) => (
+                <div 
+                  key={stat.category}
+                  className="flex items-center justify-between cursor-pointer hover:bg-accent/50 rounded-md p-2 -m-2 transition-all"
+                  onClick={() => onOpenLibrary(stat.category)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10">
+                      <div className="w-4 h-4 rounded-full bg-primary" style={{
+                        background: `conic-gradient(hsl(var(--primary)) ${stat.percentage}%, hsl(var(--muted)) ${stat.percentage}%)`
+                      }} />
+                    </div>
+                    <div>
+                      <div className="font-medium text-sm">{stat.category}</div>
+                      <div className="text-xs text-muted-foreground">{stat.count} entries</div>
+                    </div>
+                  </div>
+                  <Badge variant="secondary" className="text-xs">
+                    {stat.percentage}%
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+
+        {/* Quick Actions */}
+        <div className="grid grid-cols-2 gap-4">
+          <Button onClick={onAddWin} variant="default" size="lg" className="w-full">
+            <Plus className="w-5 h-5" />
+            Add Win
+          </Button>
+          <Button onClick={() => onOpenLibrary()} variant="outline" size="lg" className="w-full">
+            <BookOpen className="w-5 h-5" />
+            View Library
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};

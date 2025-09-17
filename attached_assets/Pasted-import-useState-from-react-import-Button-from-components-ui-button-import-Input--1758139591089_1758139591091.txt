@@ -1,0 +1,382 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { useToast } from "@/hooks/use-toast";
+import { User, Target, Award, Zap } from "lucide-react";
+import type { Rank, UserProfile } from "@/types";
+import { useAfscs } from "@/hooks/useAfscs";
+import { useAuth } from "@/hooks/useAuth";
+
+const ranks: { value: Rank; label: string }[] = [
+  { value: 'E-1', label: 'E-1 (Airman Basic)' },
+  { value: 'E-2', label: 'E-2 (Airman)' },
+  { value: 'E-3', label: 'E-3 (Airman First Class)' },
+  { value: 'E-4', label: 'E-4 (Senior Airman)' },
+  { value: 'E-5', label: 'E-5 (Staff Sergeant)' },
+  { value: 'E-6', label: 'E-6 (Technical Sergeant)' },
+  { value: 'E-7', label: 'E-7 (Master Sergeant)' },
+  { value: 'E-8', label: 'E-8 (Senior Master Sergeant)' },
+  { value: 'E-9', label: 'E-9 (Chief Master Sergeant)' },
+];
+
+const skillLevels = [
+  { value: '3', label: '3-Level (Apprentice)' },
+  { value: '5', label: '5-Level (Journeyman)' },
+  { value: '7', label: '7-Level (Craftsman)' },
+  { value: '9', label: '9-Level (Superintendent)' },
+];
+
+interface ProfileSetupScreenProps {
+  onProfileComplete: (profile: Partial<UserProfile>) => void;
+}
+
+export const ProfileSetupScreen = ({ onProfileComplete }: ProfileSetupScreenProps) => {
+  const [currentStep, setCurrentStep] = useState(1);
+  const [username, setUsername] = useState('');
+  const [rank, setRank] = useState<Rank>('E-4');
+  const [afscPrefix, setAfscPrefix] = useState('');
+  const [selectedAfsc, setSelectedAfsc] = useState('');
+  const [skillLevel, setSkillLevel] = useState('5');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const { getFilteredAfscs, loading: afscLoading } = useAfscs();
+
+  const totalSteps = 5;
+  const progress = (currentStep / totalSteps) * 100;
+
+  const handleNext = () => {
+    if (currentStep < totalSteps) {
+      setCurrentStep(currentStep + 1);
+    }
+  };
+
+  const handleBack = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const handleComplete = async () => {
+    if (!selectedAfsc) {
+      toast({
+        title: "AFSC Required",
+        description: "Please select your Air Force Specialty Code",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    
+    try {
+      const profileData: Partial<UserProfile> = {
+        username,
+        rank,
+        afsc: selectedAfsc,
+        shred: afscPrefix || undefined,
+        skillLevel,
+        email: user?.email || '',
+        totalXP: 0,
+        level: 1,
+        weeklyGoal: 3,
+        yearlyGoals: {
+          missionExecution: 20,
+          leadingPeople: 15,
+          improvingUnit: 10,
+          managingResources: 10
+        },
+        currentStreak: 0,
+        maxStreak: 0,
+        badges: [],
+        useRankDefaultDue: true,
+        dailyReminderEnabled: false,
+        dailyReminderTime: '09:00',
+        dailyReminderDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+      };
+
+      await onProfileComplete(profileData);
+      
+      toast({
+        title: "Profile Created!",
+        description: "Welcome to AIR Performance Tracker. Let's start tracking your achievements!",
+      });
+    } catch (error) {
+      console.error('Profile setup error:', error);
+      toast({
+        title: "Setup Failed",
+        description: "There was an error setting up your profile. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const canProceedFromStep = (step: number): boolean => {
+    switch (step) {
+      case 1: return !!username.trim();
+      case 2: return !!rank;
+      case 3: return !!afscPrefix;
+      case 4: return !!selectedAfsc;
+      case 5: return !!skillLevel;
+      default: return false;
+    }
+  };
+
+  const filteredAfscs = afscPrefix ? getFilteredAfscs(afscPrefix) : [];
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
+      <div className="w-full max-w-lg space-y-6">
+        {/* Header */}
+        <div className="text-center space-y-4">
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center">
+              <Target className="w-7 h-7 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Welcome!</h1>
+              <p className="text-sm text-muted-foreground">Let's set up your military profile</p>
+            </div>
+          </div>
+          
+          {/* Progress */}
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Step {currentStep} of {totalSteps}</span>
+              <span>{Math.round(progress)}% complete</span>
+            </div>
+            <Progress value={progress} className="h-2" />
+          </div>
+        </div>
+
+        {/* Setup Card */}
+        <Card className="gradient-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              {currentStep === 1 && <><User className="w-5 h-5" />Username</>}
+              {currentStep === 2 && <><User className="w-5 h-5" />Your Rank</>}
+              {currentStep === 3 && <><Award className="w-5 h-5" />AFSC Prefix</>}  
+              {currentStep === 4 && <><Target className="w-5 h-5" />Select AFSC</>}
+              {currentStep === 5 && <><Zap className="w-5 h-5" />Skill Level</>}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Step 1: Username */}
+            {currentStep === 1 && (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Choose a username for your profile. This will be displayed in the app.
+                </p>
+                <div className="space-y-2">
+                  <Label htmlFor="username">Username</Label>
+                  <Input
+                    id="username"
+                    placeholder="Enter your username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="bg-background"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Step 2: Rank */}
+            {currentStep === 2 && (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  What's your current rank in the Air Force?
+                </p>
+                <div className="space-y-2">
+                  <Label htmlFor="rank">Rank</Label>
+                  <Select value={rank} onValueChange={(value) => setRank(value as Rank)}>
+                    <SelectTrigger className="bg-background">
+                      <SelectValue placeholder="Select your rank" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background border border-border z-50">
+                      {ranks.map((rankOption) => (
+                        <SelectItem key={rankOption.value} value={rankOption.value}>
+                          {rankOption.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: AFSC Prefix */}
+            {currentStep === 3 && (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Enter your AFSC prefix (first part of your specialty code, e.g., "3D" for 3D0X2)
+                </p>
+                <div className="space-y-2">
+                  <Label htmlFor="afsc-prefix">AFSC Prefix</Label>
+                  <Input
+                    id="afsc-prefix"
+                    placeholder="e.g., 3D, 2A, 1N"
+                    value={afscPrefix}
+                    onChange={(e) => setAfscPrefix(e.target.value.toUpperCase())}
+                    className="bg-background"
+                    maxLength={4}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    This helps us find your specific Air Force Specialty Code
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Step 4: AFSC Selection */}
+            {currentStep === 4 && (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Select your specific Air Force Specialty Code (AFSC)
+                </p>
+                <div className="space-y-2">
+                  <Label htmlFor="afsc">AFSC</Label>
+                  {afscLoading ? (
+                    <div className="flex items-center justify-center p-8">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                    </div>
+                  ) : filteredAfscs.length > 0 ? (
+                    <Select value={selectedAfsc} onValueChange={setSelectedAfsc}>
+                      <SelectTrigger className="bg-background">
+                        <SelectValue placeholder="Select your AFSC" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background border border-border max-h-48 overflow-y-auto z-50">
+                        {filteredAfscs.map((afsc) => (
+                          <SelectItem key={afsc.code} value={afsc.code}>
+                            <div className="flex flex-col items-start">
+                              <span className="font-medium">{afsc.code}</span>
+                              <span className="text-xs text-muted-foreground">{afsc.title}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : afscPrefix ? (
+                    <div className="text-center p-4 text-muted-foreground">
+                      <p>No AFSCs found for prefix "{afscPrefix}"</p>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setCurrentStep(3)}
+                        className="mt-2"
+                      >
+                        Try Different Prefix
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="text-center p-4 text-muted-foreground">
+                      <p>Please go back and enter an AFSC prefix</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Step 5: Skill Level */}
+            {currentStep === 5 && (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  What's your current skill level?
+                </p>
+                <div className="space-y-2">
+                  <Label htmlFor="skill-level">Skill Level</Label>
+                  <Select value={skillLevel} onValueChange={setSkillLevel}>
+                    <SelectTrigger className="bg-background">
+                      <SelectValue placeholder="Select your skill level" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background border border-border z-50">
+                      {skillLevels.map((level) => (
+                        <SelectItem key={level.value} value={level.value}>
+                          {level.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {/* Summary */}
+                <div className="mt-6 p-4 bg-muted/20 rounded-lg space-y-2">
+                  <h3 className="font-medium text-sm">Profile Summary:</h3>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <span className="text-muted-foreground">Username:</span>
+                      <Badge variant="outline" className="ml-2">{username}</Badge>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Rank:</span>
+                      <Badge variant="outline" className="ml-2">{rank}</Badge>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">AFSC:</span>
+                      <Badge variant="outline" className="ml-2">{selectedAfsc}</Badge>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Prefix:</span>
+                      <Badge variant="outline" className="ml-2">{afscPrefix}</Badge>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">Skill Level:</span>
+                      <Badge variant="outline" className="ml-2">{skillLevel}</Badge>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Navigation */}
+            <div className="flex justify-between pt-4">
+              <Button
+                variant="outline"
+                onClick={handleBack}
+                disabled={currentStep === 1}
+              >
+                Back
+              </Button>
+              
+              {currentStep < totalSteps ? (
+                <Button
+                  onClick={handleNext}
+                  disabled={!canProceedFromStep(currentStep)}
+                >
+                  Next
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleComplete}
+                  disabled={!canProceedFromStep(currentStep) || isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                      Setting up...
+                    </>
+                  ) : (
+                    'Complete Setup'
+                  )}
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="text-center">
+          <Badge variant="secondary" className="text-xs">
+            You can update these settings anytime in your profile
+          </Badge>
+        </div>
+      </div>
+    </div>
+  );
+};
