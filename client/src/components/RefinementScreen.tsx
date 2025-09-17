@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
@@ -30,6 +30,7 @@ export default function RefinementScreen({ statementId, onComplete }: Refinement
   const [aiFeedbackCollapsed, setAiFeedbackCollapsed] = useState(false);
   const [helpSectionCollapsed, setHelpSectionCollapsed] = useState(false);
   const [isGeneratingFirstDraft, setIsGeneratingFirstDraft] = useState(false);
+  const attemptedFirstDraftRef = useRef(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -100,6 +101,11 @@ export default function RefinementScreen({ statementId, onComplete }: Refinement
     return elements;
   };
 
+  // Reset ref when statement changes
+  useEffect(() => {
+    attemptedFirstDraftRef.current = false;
+  }, [statementId]);
+
   // Fetch statement
   const { data: statement, isLoading: statementLoading } = useQuery({
     queryKey: ["/api/statements", statementId],
@@ -125,7 +131,8 @@ export default function RefinementScreen({ statementId, onComplete }: Refinement
     onSuccess: (data) => {
       setOriginalStatementContent(data.content);
       setIsGeneratingFirstDraft(false);
-      queryClient.invalidateQueries({ queryKey: ["/api/statements", statementId] });
+      // Set query data directly to avoid retriggering useEffect
+      queryClient.setQueryData(["/api/statements", statementId], (prev: any) => ({ ...prev, content: data.content }));
       toast({
         title: "First draft ready!",
         description: "Your performance statement has been generated from your win data.",
@@ -142,31 +149,41 @@ export default function RefinementScreen({ statementId, onComplete }: Refinement
     },
   });
 
+  // Handle statement content and auto-generate first draft (ONE-SHOT with ref)
   useEffect(() => {
-    if (statement) {
-      const statementContent = (statement as any).content;
-      
-      if (statementContent) {
-        // Statement has content, use it
-        setOriginalStatementContent(statementContent);
-        setIsGeneratingFirstDraft(false); // Reset flag when content exists
-      } else if ((statement as any).sourceWinIds?.length > 0 && !isGeneratingFirstDraft && !originalStatementContent) {
-        // Only generate if we don't already have content and aren't already generating
-        setIsGeneratingFirstDraft(true);
-        generateFirstDraftMutation.mutate();
-      }
-      
-      // Find the original win data from sourceWinIds
-      if (wins && (statement as any).sourceWinIds) {
-        const sourceWins = (wins as any[]).filter(win => 
-          (statement as any).sourceWinIds.includes(win.id)
-        );
-        if (sourceWins.length > 0) {
-          setWinData(sourceWins);
-        }
+    if (!statementId || !statement) return;
+    
+    const content = (statement as any).content;
+    const hasContent = typeof content === 'string' && content.trim().length > 0;
+    const hasSources = Array.isArray((statement as any).sourceWinIds) && (statement as any).sourceWinIds.length > 0;
+    
+    if (hasContent) {
+      // Statement has content, use it
+      setOriginalStatementContent(content);
+      attemptedFirstDraftRef.current = true;
+      setIsGeneratingFirstDraft(false);
+      return;
+    }
+    
+    if (hasSources && !attemptedFirstDraftRef.current) {
+      // Generate first draft only once per statement
+      attemptedFirstDraftRef.current = true; // Set BEFORE mutate to prevent double fire
+      setIsGeneratingFirstDraft(true);
+      generateFirstDraftMutation.mutate();
+    }
+  }, [statementId, statement]); // Removed wins to prevent unnecessary retriggering
+  
+  // Separate effect for win data mapping (doesn't call mutate)
+  useEffect(() => {
+    if (statement && wins && (statement as any).sourceWinIds) {
+      const sourceWins = (wins as any[]).filter(win => 
+        (statement as any).sourceWinIds.includes(win.id)
+      );
+      if (sourceWins.length > 0) {
+        setWinData(sourceWins);
       }
     }
-  }, [statement, wins]); // Removed isGeneratingFirstDraft to prevent loop
+  }, [statement, wins]);
 
   // Generate AI feedback (now happens after seeing improvement)
   const generateFeedbackMutation = useMutation({
