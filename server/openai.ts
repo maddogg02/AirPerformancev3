@@ -70,6 +70,7 @@ Statement to analyze: "${statement}"`;
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
+      temperature: 0.2,
       messages: [
         {
           role: "system", 
@@ -91,30 +92,19 @@ Statement to analyze: "${statement}"`;
 }
 
 export async function generateAskBackQuestions(statement: string): Promise<any> {
-  const prompt = `Generate 3 targeted ask-back questions to improve this Air Force performance statement. Focus on gathering missing quantitative data, leadership details, and strategic impact. 
-
-For each question, provide a detailed, realistic example answer that shows specific numbers, timeframes, dollar amounts, personnel counts, or measurable outcomes. The examples should demonstrate the level of detail that would make the statement significantly more impressive.
-
-Respond with JSON in this format:
-{
-  "questions": [
-    {
-      "question": "What specific quantitative impact did this have?",
-      "example": "Reduced processing time by 35%, saving 120 manhours weekly and $2.3M annually in operational costs",
-      "category": "quantitative"
-    }
-  ]
-}
+  const prompt = `Ask 3 targeted follow-up questions to strengthen this statement. Cover: quantitative results, leadership/scope, and mission/strategic impact. After each question, include one realistic example answer with specific numbers, timeframes, dollars, or people. Return JSON: { "questions": [ { "question": string, "example": string, "category": "quantitative" | "leadership" | "strategic" } ] }.
 
 Statement: "${statement}"`;
 
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
+      temperature: 0.2,
+      max_tokens: 300,
       messages: [
         {
           role: "system",
-          content: "You are an expert at gathering missing details for Air Force performance statements. Generate specific questions with detailed, realistic examples that show exactly what kind of impressive quantitative details, leadership scope, and strategic impacts would strengthen the statement."
+          content: "You help refine Air Force performance statements (ACTION–IMPACT–RESULT). Ask concise, practical follow-ups."
         },
         {
           role: "user",
@@ -159,7 +149,8 @@ Generate the improved statement:`;
           content: prompt
         }
       ],
-      max_completion_tokens: 200,
+      max_tokens: 200,
+      temperature: 0.2,
     });
 
     return response.choices[0].message.content || originalStatement;
