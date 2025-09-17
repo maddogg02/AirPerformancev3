@@ -149,8 +149,9 @@ export default function RefinementScreen({ statementId, onComplete }: Refinement
       if (statementContent) {
         // Statement has content, use it
         setOriginalStatementContent(statementContent);
-      } else if ((statement as any).sourceWinIds?.length > 0 && !isGeneratingFirstDraft) {
-        // Statement is empty but has source wins - generate first draft automatically
+        setIsGeneratingFirstDraft(false); // Reset flag when content exists
+      } else if ((statement as any).sourceWinIds?.length > 0 && !isGeneratingFirstDraft && !originalStatementContent) {
+        // Only generate if we don't already have content and aren't already generating
         setIsGeneratingFirstDraft(true);
         generateFirstDraftMutation.mutate();
       }
@@ -165,7 +166,7 @@ export default function RefinementScreen({ statementId, onComplete }: Refinement
         }
       }
     }
-  }, [statement, wins, isGeneratingFirstDraft]);
+  }, [statement, wins]); // Removed isGeneratingFirstDraft to prevent loop
 
   // Generate AI feedback (now happens after seeing improvement)
   const generateFeedbackMutation = useMutation({
