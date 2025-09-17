@@ -1,0 +1,131 @@
+Fixes to implement
+
+Use the Responses API correctly
+
+Call client.responses.create(...), not chat completions.
+
+Put the “system prompt” in instructions, and your turn content in input as messages. Example of extracting text from response.output[0].content[0].text is in the official cookbook. 
+OpenAI Cookbook
+
+instructions is a first-class param on Responses; cookbook examples show it in use. 
+OpenAI Cookbook
+
+Remove temperature/top-p for GPT-5 (reasoning model)
+
+Reasoning models don’t support temperature/top_p; passing them causes errors or is ignored. Use reasoning.effort and text.verbosity instead. (Azure/OpenAI doc lists these as unsupported on reasoning models.) 
+Microsoft Learn
+
+GPT-5 exposes reasoning_effort and verbosity knobs; use those. 
+OpenAI
++1
+
+Stop losing all tokens to “reasoning”
+
+Cap thinking via reasoning: { effort: "minimal" } to reserve tokens for the final message. 
+OpenAI Cookbook
+
+Still use max_output_tokens to budget for the final answer. The Responses API supports max_output_tokens. 
+OpenAI Platform
+
+GPT-5’s total reasoning + output budget is shared; don’t assume output tokens are guaranteed. (GPT-5 page: 128k “reasoning & output” tokens combined.) 
+OpenAI
+
+Extract the text the right way
+
+Don’t rely only on response.output_text (it can be empty with tool/reasoning heavy runs). Walk response.output and concatenate any item.content[].text. The cookbook shows reading from output[0].content[0].text. 
+OpenAI Cookbook
+
+(You can still fallback to response.output_text when present; many docs print it directly.) 
+OpenAI Cookbook
++1
+
+Optional fallback model
+
+If you truly don’t want reasoning tokens at all, test gpt-5-chat-latest (non-reasoning variant in the API). 
+OpenAI
+
+Drop-in helper (TypeScript / Node)
+// server/openai.ts
+import OpenAI from "openai";
+const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+export async function gpt5Text({
+  system,
+  user,
+  maxOutputTokens = 512,
+  effort = "minimal",      // "minimal" | "low" | "medium" | "high"
+  verbosity = "medium"     // "low" | "medium" | "high"
+}: {
+  system: string;
+  user: string;
+  maxOutputTokens?: number;
+  effort?: "minimal" | "low" | "medium" | "high";
+  verbosity?: "low" | "medium" | "high";
+}) {
+  const resp = await client.responses.create({
+    model: "gpt-5",
+    instructions: system,                         // system/developer guidance
+    input: [
+      { role: "user", content: [{ type: "input_text", text: user }] }
+    ],
+    // steer final answer length & thinking:
+    reasoning: { effort },                        // keep thinking cheap so output tokens remain
+    text: { verbosity, format: { type: "text" }}, // request plain text payloads
+    max_output_tokens: maxOutputTokens            // budget for final answer
+    // ❌ Do NOT send temperature/top_p for reasoning models
+  });
+
+  // Robust extraction
+  let out = "";
+  if (Array.isArray(resp.output)) {
+    for (const item of resp.output) {
+      // messages carry user-visible text
+      if ((item as any).content) {
+        for (const c of (item as any).content) {
+          if (typeof c?.text === "string") out += c.text;
+        }
+      }
+    }
+  }
+  if (!out && typeof (resp as any).output_text === "string") {
+    out = (resp as any).output_text;
+  }
+
+  return {
+    text: (out || "").trim(),
+    usage: resp.usage,   // includes output_tokens and (for reasoning models) reasoning tokens
+    id: resp.id,
+    raw: resp
+  };
+}
+
+Quick test
+const r = await gpt5Text({
+  system: "You are a concise assistant.",
+  user: "Say hi in one short sentence.",
+  maxOutputTokens: 128,
+  effort: "minimal",
+  verbosity: "low"
+});
+console.log(r.usage, "\n---\n", r.text);
+
+
+You should now see non-empty text plus sane usage.output_tokens, with minimal or zero reasoning_tokens spent.
+
+References for Replit:
+
+Responses API output extraction (output[0].content[0].text) and examples. 
+OpenAI Cookbook
+
+output_text convenience and multi-turn with previous_response_id. 
+OpenAI Cookbook
+
+Reasoning-model params (reasoning_effort, verbosity) & GPT-5 token budget. 
+OpenAI
++1
+
+Reasoning models don’t support temperature/top_p. 
+Microsoft Learn
+
+If they still get “empty output,” have them log resp.output and resp.usage to confirm whether the token budget is exhausted in reasoning; then drop effort to minimal or switch to gpt-5-chat-latest. 
+OpenAI

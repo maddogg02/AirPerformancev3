@@ -6,6 +6,73 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_KEY || "sk-placeholder"
 });
 
+// GPT-5 helper function using Responses API correctly
+async function gpt5Text(userPrompt: string, opts?: { max?: number; temperature?: number; jsonSchema?: any; jsonName?: string; instructions?: string }) {
+  const systemPrompt = opts?.instructions || "You are a helpful assistant.";
+  const maxOutputTokens = opts?.max || 512;
+
+  const requestPayload: any = {
+    model: 'gpt-5',
+    instructions: systemPrompt,                     // system/developer guidance
+    input: [
+      { role: "user", content: [{ type: "input_text", text: userPrompt }] }
+    ],
+    reasoning: { effort: "minimal" },               // keep thinking cheap so output tokens remain
+    max_output_tokens: maxOutputTokens             // budget for final answer
+    // ❌ Do NOT send temperature/top_p for reasoning models
+  };
+
+  // Add JSON schema if requested
+  if (opts?.jsonSchema) {
+    requestPayload.text = {
+      verbosity: "medium",
+      format: {
+        type: "json_schema",
+        json_schema: {
+          name: opts.jsonName || "Result",
+          schema: opts.jsonSchema,
+          strict: true
+        }
+      }
+    };
+  } else {
+    // Plain text format
+    requestPayload.text = { 
+      verbosity: "medium", 
+      format: { type: "text" } 
+    };
+  }
+
+  const resp = await openai.responses.create(requestPayload);
+  
+  // Robust extraction following OpenAI cookbook
+  let text = '';
+  
+  if (Array.isArray(resp.output)) {
+    for (const item of resp.output) {
+      // messages carry user-visible text
+      if ((item as any).content) {
+        for (const c of (item as any).content) {
+          if (typeof c?.text === "string") text += c.text;
+        }
+      }
+    }
+  }
+  
+  // Fallback to output_text when present
+  if (!text && typeof (resp as any).output_text === "string") {
+    text = (resp as any).output_text;
+  }
+
+  if (!text?.trim()) {
+    console.error('Empty output from GPT-5, full response:', JSON.stringify(resp, null, 2));
+    console.error('Usage:', resp.usage);
+    throw new Error('Empty output from GPT-5');
+  }
+  
+  return text.trim();
+}
+
 export async function generateFirstDraft(wins: Win[], mode: 'combine' | 'separate'): Promise<string> {
   const winsText = wins.map(win => 
     `Action: ${win.action}\nImpact: ${win.impact}\nResult: ${win.result}\nCategory: ${win.category}`
@@ -28,22 +95,9 @@ Generate individual polished performance statements:`;
 
   try {
     console.log("Generating first draft for wins:", wins.length, "mode:", mode);
-    const response = await openai.chat.completions.create({
-      model: "gpt-5",
-      messages: [
-        {
-          role: "system",
-          content: "You are an expert Air Force performance statement writer. You specialize in transforming raw performance data into professional military narrative statements that follow Air University standards. Always maintain ACTION--IMPACT--RESULT structure and stay under 350 characters."
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
-      max_completion_tokens: 500,
-    });
-
-    const content = response.choices[0].message.content || "";
+    const instructions = "You are an expert Air Force performance statement writer. You specialize in transforming raw performance data into professional military narrative statements that follow Air University standards. Always maintain ACTION--IMPACT--RESULT structure and stay under 350 characters.";
+    
+    const content = await gpt5Text(prompt, { max: 500, instructions });
     console.log("Generated content:", content);
     return content;
   } catch (error) {
@@ -68,22 +122,24 @@ export async function generateAIFeedback(statement: string): Promise<any> {
 Statement to analyze: "${statement}"`;
 
   try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-5",
-      messages: [
-        {
-          role: "system", 
-          content: "You are an Air Force performance evaluation expert. Analyze statements based on Air University standards, quantitative impact, professional language, and ACTION--IMPACT--RESULT structure."
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
-      response_format: { type: "json_object" },
-    });
-
-    return JSON.parse(response.choices[0].message.content || "{}");
+    const instructions = "You are an Air Force performance evaluation expert. Analyze statements based on Air University standards, quantitative impact, professional language, and ACTION--IMPACT--RESULT structure.";
+    
+    const feedbackSchema = {
+      type: "object",
+      properties: {
+        score: { type: "number" },
+        strengths: { type: "array", items: { type: "string" } },
+        improvements: { type: "array", items: { type: "string" } },
+        characterCount: { type: "number" },
+        hasQuantitativeData: { type: "boolean" },
+        followsAirStructure: { type: "boolean" }
+      },
+      required: ["score", "strengths", "improvements", "characterCount", "hasQuantitativeData", "followsAirStructure"],
+      additionalProperties: false
+    };
+    
+    const content = await gpt5Text(prompt, { max: 500, temperature: 0.2, jsonSchema: feedbackSchema, jsonName: "Feedback", instructions });
+    return JSON.parse(content);
   } catch (error) {
     console.error("Error generating AI feedback:", error);
     throw new Error("Failed to generate feedback");
@@ -92,17 +148,9 @@ Statement to analyze: "${statement}"`;
 
 export async function generateAskBackQuestions(statement: string): Promise<any> {
   try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-5",
-      max_completion_tokens: 500,
-      messages: [
-        {
-          role: "system",
-          content: "You are a USAF performance SME. Generate exactly 3 targeted follow‑up questions to strengthen an ACTION–IMPACT–RESULT statement. CRITICAL RULES: NEVER use these banned words in questions: evidence, source, sourcing, validate, validation, proof, documentation, cite, citation, verify, verification, audit trail, supporting data, data source. Do NOT question metrics legitimacy or ask how metrics were measured. Focus ONLY on: missing action specifics, causal gaps, scope/timeline, or content clarity issues. Categories are fixed: quantitative, leadership, strategic."
-        },
-        {
-          role: "user",
-          content: `Produce JSON per schema for this statement:
+    const prompt = `You are a USAF performance SME. Generate exactly 3 targeted follow‑up questions to strengthen an ACTION–IMPACT–RESULT statement. CRITICAL RULES: NEVER use these banned words in questions: evidence, source, sourcing, validate, validation, proof, documentation, cite, citation, verify, verification, audit trail, supporting data, data source. Do NOT question metrics legitimacy or ask how metrics were measured. Focus ONLY on: missing action specifics, causal gaps, scope/timeline, or content clarity issues. Categories are fixed: quantitative, leadership, strategic.
+
+Produce JSON per schema for this statement:
 Schema:
 {
   "questions": [
@@ -124,29 +172,47 @@ Rules:
 - Pattern: Led X-person team through [major project] affecting [scope] while simultaneously [second accomplishment] resulting in [combined impressive metrics and impact].
 - Output only the JSON object, no commentary.
 
-Statement:
-Led COMSEC inventory overhaul for 127 devices across 3 squadrons—cut audit findings by 68%.`
-        },
-        {
-          role: "assistant",
-          content: `{
+EXAMPLE:
+Statement: Led COMSEC inventory overhaul for 127 devices across 3 squadrons—cut audit findings by 68%.
+Response: {
  "questions": [
   {"id":"quantitative","category":"quantitative","question":"What specific scope of COMSEC program management and timeline accomplishments supported this 68% audit improvement?","example":"Led comprehensive COMSEC program overhaul across 15 work centers affecting 450 personnel while implementing automated tracking system that reduced inventory processing time by 240 hours monthly and eliminated $1.2M in potential security violations."},
   {"id":"leadership","category":"leadership","question":"What multi-squadron coordination and personnel development occurred during this inventory transformation?","example":"Mentored 12 junior NCOs through advanced COMSEC procedures while coordinating with 8 squadron COMSEC managers during RED FLAG 24-2 deployment that maintained 100% operational security across 3,200 classified items."},
   {"id":"strategic","category":"strategic","question":"How did this COMSEC enhancement connect to broader wing readiness and strategic mission capabilities?","example":"Enabled seamless transition to Combat Comm operations during PACIFIC THUNDER exercise while supporting classified mission planning for 2,400 sorties that directly contributed to $45M cost avoidance in contract security services."}
  ]
-}`
-        },
-        {
-          role: "user",
-          content: `Using the same schema and rules, generate questions for this statement:
-"${statement}"`
-        }
-      ],
-      response_format: { type: "json_object" },
-    });
+}
 
-    return JSON.parse(response.choices[0].message.content || "{}");
+NOW, using the same schema and rules, generate questions for this statement:
+"${statement}"`;
+
+    const instructions = "You are a USAF performance SME. Generate exactly 3 targeted follow‑up questions to strengthen an ACTION–IMPACT–RESULT statement. CRITICAL RULES: NEVER use these banned words in questions: evidence, source, sourcing, validate, validation, proof, documentation, cite, citation, verify, verification, audit trail, supporting data, data source. Do NOT question metrics legitimacy or ask how metrics were measured. Focus ONLY on: missing action specifics, causal gaps, scope/timeline, or content clarity issues. Categories are fixed: quantitative, leadership, strategic.";
+    
+    const questionsSchema = {
+      type: "object",
+      properties: {
+        questions: {
+          type: "array",
+          minItems: 3,
+          maxItems: 3,
+          items: {
+            type: "object",
+            properties: {
+              id: { type: "string", enum: ["quantitative", "leadership", "strategic"] },
+              category: { type: "string", enum: ["quantitative", "leadership", "strategic"] },
+              question: { type: "string" },
+              example: { type: "string" }
+            },
+            required: ["id", "category", "question", "example"],
+            additionalProperties: false
+          }
+        }
+      },
+      required: ["questions"],
+      additionalProperties: false
+    };
+    
+    const content = await gpt5Text(prompt, { max: 500, temperature: 0.2, jsonSchema: questionsSchema, jsonName: "AskBackQuestions", instructions });
+    return JSON.parse(content);
   } catch (error) {
     console.error("Error generating ask-back questions:", error);
     throw new Error("Failed to generate ask-back questions");
@@ -169,62 +235,26 @@ ${answersText}
 Generate the improved statement:`;
 
   try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-5",
-      messages: [
-        {
-          role: "system",
-          content: "You are an expert Air Force performance statement writer. Improve statements by incorporating additional details while maintaining professional military language and ACTION--IMPACT--RESULT structure."
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
-      max_completion_tokens: 200,
-    });
-
-    return response.choices[0].message.content || originalStatement;
+    const instructions = "You are an expert Air Force performance statement writer. Improve statements by incorporating additional details while maintaining professional military language and ACTION--IMPACT--RESULT structure.";
+    
+    const content = await gpt5Text(prompt, { max: 200, instructions });
+    return content || originalStatement;
   } catch (error) {
     console.error("Error regenerating statement:", error);
     throw new Error("Failed to regenerate statement");
   }
 }
 
-export async function generateSynonymSuggestions(statement: string): Promise<any> {
-  const prompt = `Analyze this Air Force performance statement and suggest professional military synonyms for key action words and impact terms. Respond with JSON in this format:
-
-{
-  "suggestions": [
-    {
-      "original": "word",
-      "synonyms": ["synonym1", "synonym2", "synonym3"],
-      "position": number
-    }
-  ]
-}
-
-Statement: "${statement}"`;
-
+// Test function to verify GPT-5 connectivity
+export async function testGPT5Connection(): Promise<string> {
   try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-5",
-      messages: [
-        {
-          role: "system",
-          content: "You are an expert in Air Force professional language. Suggest appropriate military synonyms that enhance performance statements while maintaining professional tone."
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
-      response_format: { type: "json_object" },
-    });
-
-    return JSON.parse(response.choices[0].message.content || "{}");
+    console.log("Testing GPT-5 connection...");
+    const content = await gpt5Text("Say 'GPT-5 is working properly' and nothing else.", { max: 256, instructions: "You are a helpful assistant." });
+    console.log("GPT-5 test response:", content);
+    return content;
   } catch (error) {
-    console.error("Error generating synonyms:", error);
-    throw new Error("Failed to generate synonyms");
+    console.error("GPT-5 connection test failed:", error);
+    throw new Error(`GPT-5 test failed: ${error}`);
   }
 }
+

@@ -3,11 +3,22 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertWinSchema, insertStatementSchema, updateUserProfileSchema, performanceCategories } from "@shared/schema";
-import { generateFirstDraft, generateAIFeedback, generateAskBackQuestions, generateSynonymSuggestions, regenerateStatement } from "./openai";
+import { generateFirstDraft, generateAIFeedback, generateAskBackQuestions, regenerateStatement, testGPT5Connection } from "./openai";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
+
+  // Test route for GPT-5 connectivity
+  app.get('/api/test/gpt5', async (req: any, res) => {
+    try {
+      const result = await testGPT5Connection();
+      res.json({ status: 'success', response: result });
+    } catch (error) {
+      console.error('GPT-5 test failed:', error);
+      res.status(500).json({ status: 'error', error: error.message });
+    }
+  });
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
@@ -259,32 +270,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/refinement/:statementId/synonyms', isAuthenticated, async (req: any, res) => {
-    try {
-      const { statementId } = req.params;
-      const statement = await storage.getStatementById(statementId);
-      
-      if (!statement) {
-        return res.status(404).json({ message: "Statement not found" });
-      }
-      
-      const synonyms = await generateSynonymSuggestions(statement.content);
-      
-      // Update refinement session
-      const session = await storage.getRefinementSessionByStatementId(statementId);
-      if (session) {
-        await storage.updateRefinementSession(session.id, {
-          synonymSuggestions: synonyms,
-          currentStep: 4,
-        });
-      }
-      
-      res.json(synonyms);
-    } catch (error) {
-      console.error("Error generating synonyms:", error);
-      res.status(500).json({ message: "Failed to generate synonyms" });
-    }
-  });
 
   app.post('/api/refinement/:statementId/complete', isAuthenticated, async (req: any, res) => {
     try {

@@ -105,7 +105,6 @@ export const refinementSessions = pgTable("refinement_sessions", {
   currentStep: integer("current_step").default(1), // 1-5
   aiFeeds: jsonb("ai_feedback"), // AI feedback and scoring
   askBackAnswers: jsonb("ask_back_answers"), // User answers to ask-back questions
-  synonymSuggestions: jsonb("synonym_suggestions"), // AI-generated synonym suggestions
   isCompleted: boolean("is_completed").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
