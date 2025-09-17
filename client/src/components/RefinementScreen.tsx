@@ -29,6 +29,7 @@ export default function RefinementScreen({ statementId, onComplete }: Refinement
   const [refinementCount, setRefinementCount] = useState(0);
   const [aiFeedbackCollapsed, setAiFeedbackCollapsed] = useState(false);
   const [helpSectionCollapsed, setHelpSectionCollapsed] = useState(false);
+  const [isGeneratingFirstDraft, setIsGeneratingFirstDraft] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -113,9 +114,46 @@ export default function RefinementScreen({ statementId, onComplete }: Refinement
     retry: false,
   });
 
+  // Auto-generate first draft if statement content is empty
+  const generateFirstDraftMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", `/api/refinement/${statementId}/regenerate`, {
+        askBackAnswers: {}
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setOriginalStatementContent(data.content);
+      setIsGeneratingFirstDraft(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/statements", statementId] });
+      toast({
+        title: "First draft ready!",
+        description: "Your performance statement has been generated from your win data.",
+      });
+    },
+    onError: (error) => {
+      setIsGeneratingFirstDraft(false);
+      console.error('Failed to generate first draft:', error);
+      toast({
+        title: "Generation failed",
+        description: "Could not create first draft. Please try again.",
+        variant: "destructive"
+      });
+    },
+  });
+
   useEffect(() => {
     if (statement) {
-      setOriginalStatementContent((statement as any).content);
+      const statementContent = (statement as any).content;
+      
+      if (statementContent) {
+        // Statement has content, use it
+        setOriginalStatementContent(statementContent);
+      } else if ((statement as any).sourceWinIds?.length > 0 && !isGeneratingFirstDraft) {
+        // Statement is empty but has source wins - generate first draft automatically
+        setIsGeneratingFirstDraft(true);
+        generateFirstDraftMutation.mutate();
+      }
       
       // Find the original win data from sourceWinIds
       if (wins && (statement as any).sourceWinIds) {
@@ -127,7 +165,7 @@ export default function RefinementScreen({ statementId, onComplete }: Refinement
         }
       }
     }
-  }, [statement, wins]);
+  }, [statement, wins, isGeneratingFirstDraft]);
 
   // Generate AI feedback (now happens after seeing improvement)
   const generateFeedbackMutation = useMutation({
@@ -274,11 +312,16 @@ export default function RefinementScreen({ statementId, onComplete }: Refinement
     }
   };
 
-  if (statementLoading || !statement) {
+  if (statementLoading || !statement || isGeneratingFirstDraft || generateFirstDraftMutation.isPending) {
     return (
       <div className="p-4 space-y-6">
         <div className="flex items-center justify-center py-8">
-          <div className="animate-pulse text-muted-foreground">Loading statement...</div>
+          <div className="animate-pulse text-muted-foreground">
+            {isGeneratingFirstDraft || generateFirstDraftMutation.isPending 
+              ? "Generating your first draft from win data..."
+              : "Loading statement..."
+            }
+          </div>
         </div>
       </div>
     );
