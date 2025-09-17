@@ -91,14 +91,17 @@ Statement to analyze: "${statement}"`;
 }
 
 export async function generateAskBackQuestions(statement: string): Promise<any> {
-  const prompt = `Generate 3 targeted ask-back questions to improve this Air Force performance statement. Focus on gathering missing quantitative data, leadership details, and strategic impact. Respond with JSON in this format:
+  const prompt = `Generate 3 targeted ask-back questions to improve this Air Force performance statement. Focus on gathering missing quantitative data, leadership details, and strategic impact. 
 
+For each question, provide a detailed, realistic example answer that shows specific numbers, timeframes, dollar amounts, personnel counts, or measurable outcomes. The examples should demonstrate the level of detail that would make the statement significantly more impressive.
+
+Respond with JSON in this format:
 {
   "questions": [
     {
-      "question": "Question text?",
-      "example": "Example answer",
-      "category": "quantitative|leadership|strategic"
+      "question": "What specific quantitative impact did this have?",
+      "example": "Reduced processing time by 35%, saving 120 manhours weekly and $2.3M annually in operational costs",
+      "category": "quantitative"
     }
   ]
 }
@@ -111,7 +114,7 @@ Statement: "${statement}"`;
       messages: [
         {
           role: "system",
-          content: "You are an expert at gathering missing details for Air Force performance statements. Generate specific questions that will help improve quantitative data, leadership actions, and strategic impact."
+          content: "You are an expert at gathering missing details for Air Force performance statements. Generate specific questions with detailed, realistic examples that show exactly what kind of impressive quantitative details, leadership scope, and strategic impacts would strengthen the statement."
         },
         {
           role: "user",
