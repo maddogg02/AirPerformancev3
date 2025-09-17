@@ -40,7 +40,7 @@ Generate individual polished performance statements:`;
           content: prompt
         }
       ],
-      max_tokens: 500,
+      max_completion_tokens: 500,
     });
 
     const content = response.choices[0].message.content || "";
@@ -96,7 +96,7 @@ export async function generateAskBackQuestions(statement: string): Promise<any> 
     const response = await openai.chat.completions.create({
       model: "gpt-5",
       temperature: 0.2,
-      max_tokens: 500,
+      max_completion_tokens: 500,
       messages: [
         {
           role: "system",
@@ -183,7 +183,7 @@ Generate the improved statement:`;
           content: prompt
         }
       ],
-      max_tokens: 200,
+      max_completion_tokens: 200,
       temperature: 0.2,
     });
 
