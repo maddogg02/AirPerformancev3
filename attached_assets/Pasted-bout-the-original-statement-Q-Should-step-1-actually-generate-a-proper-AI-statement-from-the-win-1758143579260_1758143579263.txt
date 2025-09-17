@@ -1,0 +1,48 @@
+bout the "original statement"
+
+Q: Should step 1 actually generate a proper AI statement from the win data first? Or just show the raw win fields as the "before"?
+A: Show a basic AI-generated draft statement first, not just raw fields. Raw fields feel unfinished and confuse users (your current issue). Even if it’s weak, label it clearly as “First Draft from Win Data.” That way users immediately see that the AI did something with their input.
+
+Q: When you say "original air win"—do you mean showing the Action/Impact/Result fields, or a basic statement generated from them?
+A: Show the Action/Impact/Result fields for transparency, but wrap them into a plain AI sentence so the “before” looks like a real narrative. For example:
+
+AIR fields view: Action: Fixed 237 mx actions | Impact: Enabled sortie generation | Result: Increased readiness
+
+Draft statement view: “Fixed 237 maintenance actions, enabling sortie generation and increasing unit readiness.”
+
+This gives both transparency (AIR fields) and readability (draft statement).
+
+❓ About the comparison view
+
+Q: Side-by-side or stacked vertically?
+A: Side-by-side works best on desktop, but fall back to stacked vertically on mobile. That makes it responsive and keeps the “Before → After” impact clear.
+
+Q: Should there be visual highlighting of what changed between versions?
+A: Yes — subtle inline highlights (e.g., green for additions, strikethrough red for removed fluff). That shows why the after version is stronger, aligning with Brown Bag’s “show the value of improvement” principle.
+
+❓ About the refinement loop
+
+Q: After AI feedback, should users be able to answer more questions and regenerate again?
+A: Yes. That keeps them engaged in an iterative “perfect practice” cycle (like Jaren describes).
+
+Q: How many iterations before encouraging save?
+A: Encourage save after 2 full loops. Most users won’t meaningfully improve beyond 2–3 rounds; after that, prompt them with: “Looks solid! Save to your library, or keep refining if you’d like.”
+
+❓ About the initial generation
+
+Q: When they first enter refinement, should we immediately generate a proper AI statement from the win, or start with just the raw fields?
+A: Immediately generate a basic statement from the win. That solves your current “looks like nothing happened” problem. Then show AIR fields beneath for transparency.
+
+✅ Summary Flow (Recommended):
+
+Original Draft → AI builds a first sentence from the win (with AIR fields displayed beneath).
+
+Askback Questions → Fill in missing details.
+
+Before → After Comparison → Side-by-side with highlights.
+
+AI Feedback → Strengths, gaps, tips.
+
+Refinement Loop → Optional, up to 2–3 times.
+
+Save to Library → Encourage after 2 loops.
