@@ -92,23 +92,51 @@ Statement to analyze: "${statement}"`;
 }
 
 export async function generateAskBackQuestions(statement: string): Promise<any> {
-  const prompt = `Ask 3 targeted follow-up questions to strengthen this statement. Cover: quantitative results, leadership/scope, and mission/strategic impact. After each question, include one realistic example answer with specific numbers, timeframes, dollars, or people. Return JSON: { "questions": [ { "question": string, "example": string, "category": "quantitative" | "leadership" | "strategic" } ] }.
-
-Statement: "${statement}"`;
-
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-5",
       temperature: 0.2,
-      max_tokens: 300,
+      max_tokens: 500,
       messages: [
         {
           role: "system",
-          content: "You help refine Air Force performance statements (ACTION–IMPACT–RESULT). Ask concise, practical follow-ups."
+          content: "You are a USAF performance SME. Generate exactly 3 targeted follow‑up questions to strengthen an ACTION–IMPACT–RESULT statement. Each question must be tailored to the statement's context and designed to elicit concrete, verifiable details. Output only valid JSON per schema. Never use placeholders (X, Y, Z). Prefer realistic numbers, timeframes, dollars, and headcount typical for USAF ops. Categories are fixed: quantitative, leadership, strategic."
         },
         {
           role: "user",
-          content: prompt
+          content: `Produce JSON per schema for this statement:
+Schema:
+{
+  "questions": [
+    {"id":"quantitative","category":"quantitative","question": string, "example": string},
+    {"id":"leadership","category":"leadership","question": string, "example": string},
+    {"id":"strategic","category":"strategic","question": string, "example": string}
+  ]
+}
+Rules:
+- Tailor each question to the statement's units, platforms, mission names, systems, and metrics present/implicit.
+- Examples must be 1–2 sentences with concrete details: numbers (counts, %), timeframes (weeks/months), dollars, headcount, scope (units/locations/systems).
+- Keep examples plausible; do not invent classified names; if no finance context, favor time saved, throughput, accuracy, readiness, sortie rate, SLAs, inspection outcomes.
+- If the statement already includes numbers, ask for the next‑order metric (baseline vs new, delta, percent change, frequency, scope).
+- Output only the JSON object, no commentary.
+
+Statement:
+"Led COMSEC inventory overhaul for 127 devices across 3 squadrons—cut audit findings by 68%."`
+        },
+        {
+          role: "assistant",
+          content: `{
+ "questions": [
+  {"id":"quantitative","category":"quantitative","question":"What baseline findings and time period are you comparing against, and what specific violations dropped by 68%?","example":"Baseline 44 findings in FY24 Q2 across 3 sq; after overhaul, 14 in Q3 (−68%) over 90 days."},
+  {"id":"leadership","category":"leadership","question":"What was your span of control and cross‑unit coordination to execute the overhaul?","example":"Directed 6 custodians and synchronized with 3 Sq COMSEC managers; completed 4 after‑hours inventories to avoid ops impact."},
+  {"id":"strategic","category":"strategic","question":"How did the reduction affect readiness, inspection outcomes, or risk exposure?","example":"Eliminated a Major Finding on IG pre‑inspect, reduced COMSEC risk for 1.2K users, accelerated ACI closeout by 3 weeks."}
+ ]
+}`
+        },
+        {
+          role: "user",
+          content: `Using the same schema and rules, generate questions for this statement:
+"${statement}"`
         }
       ],
       response_format: { type: "json_object" },
