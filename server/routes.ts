@@ -3,11 +3,24 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertWinSchema, insertStatementSchema, updateUserProfileSchema, performanceCategories } from "@shared/schema";
-import { generateFirstDraft, generateAIFeedback, generateAskBackQuestions, regenerateStatement, testGPT5Connection } from "./openai";
+import { generateFirstDraft, generateAIFeedback, generateAskBackQuestions, regenerateStatement, enhancedRegenerateStatement, testGPT5Connection } from "./openai";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
+  
+  // Startup migration: Add enhanced_steps column if it doesn't exist
+  try {
+    const { pool } = await import("./db");
+    await pool.query(`
+      ALTER TABLE refinement_sessions 
+      ADD COLUMN IF NOT EXISTS enhanced_steps jsonb;
+    `);
+    console.log("✅ Database schema migration completed: enhanced_steps column ensured");
+  } catch (error) {
+    console.error("⚠️ Database migration warning:", error);
+    // Don't fail startup - the column might already exist
+  }
 
   // Test route for GPT-5 connectivity
   app.get('/api/test/gpt5', async (req: any, res) => {
@@ -246,26 +259,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Statement not found" });
       }
       
-      // Regenerate statement with ask-back answers
-      const regenerated = await regenerateStatement(statement.content, askBackAnswers);
+      // Enhanced two-stage regeneration with AI feedback loop
+      const enhancedResult = await enhancedRegenerateStatement(statement.content, askBackAnswers);
       
-      // Update statement
+      // Update statement with final result
       await storage.updateStatement(statementId, {
-        content: regenerated,
+        content: enhancedResult.finalResult,
       });
       
-      // Update refinement session
+      // Update refinement session with all intermediate steps
       const session = await storage.getRefinementSessionByStatementId(statementId);
       if (session) {
         await storage.updateRefinementSession(session.id, {
           askBackAnswers,
+          enhancedSteps: {
+            stage1Result: enhancedResult.stage1Result,
+            aiFeedback: enhancedResult.aiFeedback,
+            finalResult: enhancedResult.finalResult
+          },
           currentStep: 4,
         });
       }
       
-      res.json({ content: regenerated });
+      res.json({ 
+        content: enhancedResult.finalResult,
+        intermediateSteps: {
+          stage1Result: enhancedResult.stage1Result,
+          aiFeedback: enhancedResult.aiFeedback,
+          finalResult: enhancedResult.finalResult
+        }
+      });
     } catch (error) {
-      console.error("Error regenerating statement:", error);
+      console.error("Error in enhanced regeneration:", error);
       res.status(500).json({ message: "Failed to regenerate statement" });
     }
   });
